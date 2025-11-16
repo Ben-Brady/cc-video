@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+numpy
+pillow
+pydub
+opencv-python
+pyautogui
+audioop-lts
+tqdm
