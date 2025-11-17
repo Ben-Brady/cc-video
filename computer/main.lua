@@ -112,7 +112,7 @@ local function playVideo()
                 if audio_data then
                     local buffer = textutils.unserialiseJSON(audio_data)
 
-                    while not speaker.playAudio(buffer, 0.3) do
+                    while not speaker.playAudio(buffer, 1) do
                         utils.yield()
                     end
                 end

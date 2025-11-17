@@ -16,7 +16,7 @@ class MonitorDisplay:
 
 T_MARGIN = 2
 B_MARGIN = 2
-L_MARGIN = 2
+L_MARGIN = 3
 R_MARGIN = 3
 
 def calculate_permonitor(display: MonitorDisplay) -> tuple[int, int]:
@@ -89,6 +89,7 @@ def calculate_resize_parameters(sourceSize: tuple[int, int], maxSize: tuple[int,
     height_ratio = height / source_height
     scale = min(width_ratio, height_ratio)
 
+
     new_width = int(source_width * scale)
     new_height = int(source_height * scale)
     x_offset = (width - new_width) // 2
@@ -99,8 +100,8 @@ def calculate_resize_parameters(sourceSize: tuple[int, int], maxSize: tuple[int,
     return target_resize, target_offset
 
 def encode_frame(
-    display: MonitorDisplay, img: np.ndarray, executor: ThreadPoolExecutor
-) -> t.Iterable[str]:
+    display: MonitorDisplay, img: Image.Image, executor: ThreadPoolExecutor
+) -> str:
     perMonitorWidth, perMonitorHeight = calculate_permonitor(display)
 
     monitors: list[Image.Image] = []
@@ -122,7 +123,7 @@ def encode_frame(
     return "".join(executor.map(encode_monitor, args))
 
 
-def encode_monitor(arg: tuple[int, Image.Image, MonitorDisplay]):
+def encode_monitor(arg: tuple[Image.Image, MonitorDisplay]):
     img, display = arg
     output = ""
 

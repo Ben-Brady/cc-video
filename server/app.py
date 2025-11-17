@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 app = FastAPI()
 
-FILEPATH = "./data/nostalgia.mp4"
+FILEPATH = "./data/wall.mp4"
 # FILEPATH = "./data/dance.mov"
 
 FOLDER = Path("D:/Hydrus/Memes/client_files")
@@ -98,8 +98,7 @@ async def _(websocket: WebSocket, id: int = Query()):
             break
 
 
-
 if __name__ == "__main__":
-    # video_frames = list(tqdm(video.stream_video(FILEPATH, video.DISPLAY), total=3500))
-    # audio_frames = list(tqdm(audio.stream_video_file(FILEPATH, 20)))
-    uvicorn.run(app, port=8000)
+    # video_frames = list(tqdm(video.stream_video(FILEPATH, video.DISPLAY)))
+    audio_frames = list(tqdm(audio.stream_video_file(FILEPATH, 20)))
+    # uvicorn.run(app, port=8000)
