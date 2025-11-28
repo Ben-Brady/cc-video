@@ -49,9 +49,11 @@ Along with some other optimisations, this meant I had enough performance to enco
 Steaming support meant I could support very long videos or live streams, since I didn't have to worry about storing everything in memory.
 Honestly the hardest part in doing this was figuring out how to tee stdout in python, I eventually figured out how using pipes and a queue, but it's suprisingly hard.
 
-I hooked it up to yt-dlp, and now I have a working youtube video streaming:
+I hooked it up to yt-dlp, and now I have working youtube video streaming:
 
 https://github.com/user-attachments/assets/c162873e-26d3-472e-a3d6-8f54d4cb4d7e
 
 This project is probably over for now, I've tidied it up the best I can and there may be some minor improvements I can do.
 But it's way better than I expected already, and I've learned so much from it, I'm very glad to have done it.
+
+The one thing left to do is setup input streaming and hook it up to doom :)
