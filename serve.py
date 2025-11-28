@@ -20,11 +20,9 @@ def all_files_in_folder(folder: str):
         path = path.removeprefix(folder_prefix)
         for file in path_files:
             file = Path(path, file)
-            print(file)
             all_files.append(file)
 
     return [Path(file) for file in all_files]
-
 
 class ProgramServer(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -40,11 +38,7 @@ class ProgramServer(BaseHTTPRequestHandler):
 
         folder_prefix = f"{Path(folder)}/"
 
-        files = []
-        for path, _, path_files in os.walk(folder):
-            for file in path_files:
-                files.append(Path(path, file))
-
+        files = all_files_in_folder(folder)
 
         file_contents = {}
         for file in files:

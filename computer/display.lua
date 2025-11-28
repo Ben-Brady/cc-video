@@ -2,8 +2,10 @@ local exports = {}
 
 exports.MONITOR_ROWS = 6
 exports.MONITOR_COLS = 11
+
 function exports.calibrate()
     local ids = {}
+    print("calibrate monitors")
     for i = 1, exports.MONITOR_ROWS * exports.MONITOR_COLS, 1 do
         local _, id = os.pullEvent("monitor_touch")
         local monitor = peripheral.wrap(id)
@@ -17,19 +19,40 @@ function exports.calibrate()
     f.close()
 end
 
-
-function exports.setupMonitors()
+function exports.getMonitors()
     local f = fs.open("monitors.json", "r")
     local ids = textutils.unserialiseJSON(f.readAll())
+    ---@cast ids string[]
     f.close()
 
+
+    local monitor_count = exports.MONITOR_COLS * exports.MONITOR_ROWS
     local monitors = {}
-    for i, id in ipairs(ids) do
+
+    for i = 1, monitor_count, 1 do
+        local id = ids[i]
         local monitor = peripheral.wrap(id)
         monitors[#monitors + 1] = monitor
     end
 
     return monitors
+end
+
+function exports.getDisplayString()
+    local cols = exports.MONITOR_COLS
+    local rows = exports.MONITOR_ROWS
+    local width, height = exports.getIndivualMonitorSize()
+    return string.format("%d-%d-%d-%d", rows, cols, width, height)
+end
+
+function exports.getIndivualMonitorSize()
+    local f = fs.open("monitors.json", "r")
+    local ids = textutils.unserialiseJSON(f.readAll())
+    f.close()
+
+    local monitor = peripheral.wrap(ids[1])
+    local width, height = monitor.getSize()
+    return width, height
 end
 
 function exports.resetMonitors()

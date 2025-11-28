@@ -1,27 +1,61 @@
+local utils = require("utils")
 local renderer = require("render")
 local createReader = require("reader")
 local display = require("display")
-local utils = require("utils")
+local requests = require("requests")
+local streams = require("streams")
 
-local INITIAL_BUFFER_SIZE = 25
-local MAX_BUFFER_SIZE = 30
-local BATCH_SIZE = 5
+local INITIAL_BUFFER_SIZE = 100
+local MAX_BUFFER_SIZE = 200
+local BATCH_SIZE = 20
 local AUDIO_OFFSET = 0
 
 display.resetMonitors()
 -- display.calibrate()
 
-local function playVideo()
-    local monitors = display.setupMonitors()
 
-    local r = http.get("http://127.0.0.1:8000/start/video")
-    local id = r.readAll()
-    local ws_audio = http.websocket("ws://127.0.0.1:8000/audio?id=" .. id)
-    local ws_video = http.websocket("ws://127.0.0.1:8000/video?id=" .. id)
-
-    if not ws_video then
-        error("Could not connect")
+---@type Speaker[]
+local speakers = { peripheral.find("speaker") }
+local function playAudioToSpeakers(buffer)
+    local funcs = {}
+    for i, speaker in ipairs(speakers) do
+        funcs[#funcs + 1] = function()
+            local name = peripheral.getName(speaker)
+            while not speaker.playAudio(buffer) do
+                local _, target_name = os.pullEvent("speaker_audio_empty")
+            end
+            os.pullEvent("speaker_audio_empty")
+        end
     end
+    parallel.waitForAll(table.unpack(funcs))
+end
+
+local monitor = peripheral.wrap("left")
+local width, height = monitor.getSize()
+
+local window_banner = window.create(monitor, 1, 1, width, 1, true)
+local window_info = window.create(monitor, 2, 3, width, height - 2, true)
+
+local function writeInfo(y, text)
+    window_info.setVisible(false)
+    window_info.setCursorPos(1, y)
+    window_info.clearLine()
+    window_info.write(text)
+    window_info.setVisible(true)
+end
+
+local HTTP_SERVER = "http://localhost:8000"
+local WS_SERVER = "ws://localhost:8000"
+local function playVideo()
+    local monitors = display.getMonitors()
+
+    writeInfo(5, "      Stream: Starting")
+    local stream_id = requests.createYoutubeStream("5BwygBWGhRQ")
+
+    writeInfo(5, "      Stream: Loading")
+    local stream = streams.connectToStream(stream_id)
+    local buffer = stream.buffer
+
     print("Connected to Stream")
     local frames = 0
 
@@ -30,134 +64,130 @@ local function playVideo()
     ---@type Speaker
     local speaker = speakers[1]
 
-    local averageRender = utils.createAverage()
-    local averageFrame = utils.createAverage()
-
-    local video_frames = {}
-    local audio_frames = {}
-
     local is_over = false
-    local function streamVideo()
-        parallel.waitForAll(function()
-            if not ws_audio then
-                return
-            end
-
-            while true do
-                utils.waitUntilTrue(function()
-                    return #audio_frames < MAX_BUFFER_SIZE
-                end)
-                ws_audio.send(tostring(BATCH_SIZE))
-                for i = 1, BATCH_SIZE, 1 do
-                    local audio_frame = ws_audio.receive()
-                    if audio_frame == "END" then
-                        return
-                    end
-                    audio_frames[#audio_frames + 1] = audio_frame
-                end
-            end
-        end, function()
-            while true do
-                utils.waitUntilTrue(function()
-                    return #video_frames < MAX_BUFFER_SIZE
-                end)
-                ws_video.send(tostring(BATCH_SIZE))
-                for i = 1, BATCH_SIZE, 1 do
-                    local video_frame = ws_video.receive()
-                    if video_frame == "END" then
-                        return
-                    end
-                    video_frames[#video_frames + 1] = video_frame
-                end
-            end
-        end)
-        print("Stream Over")
-        is_over = true
-    end
 
     local function refreshBuffer()
         utils.waitUntilTrue(function()
-            return is_over or (#video_frames > INITIAL_BUFFER_SIZE)
+            return is_over or (#buffer.video > INITIAL_BUFFER_SIZE)
         end)
         utils.waitUntilTrue(function()
-            return is_over or (not ws_audio or (#audio_frames > INITIAL_BUFFER_SIZE))
+            return is_over or (not stream.has_audio or (#buffer.audio > INITIAL_BUFFER_SIZE))
         end)
     end
 
-    local function playVideoFrame(isFirstFrame)
-        local needs_more_data = #video_frames == 0 or (ws_audio and #audio_frames == 0)
+    local function ensureBuffer()
+        local needs_more_data = #buffer.video == 0 or (stream.has_audio and #buffer.audio == 0)
+
         if not is_over and needs_more_data then
-            print("Refreshing Buffer")
+            writeInfo(6, "      Buffer: Loading...")
             refreshBuffer()
         end
+    end
 
-        if ws_audio and isFirstFrame then
-            local buffered = 0
-            for i = 1, AUDIO_OFFSET, 1 do
-                utils.waitUntilTrue(function() return #audio_frames > 0 end)
-                local audio_data = table.remove(audio_frames, 1)
-                local buffer = textutils.unserialiseJSON(audio_data)
-                speaker.playAudio(buffer, 0.3)
-            end
-        end
-
-        local start = os.clock()
+    local function playVideoFrame()
         parallel.waitForAll(
             function()
-                if not ws_audio then
+                if not stream.has_audio then
                     return
                 end
 
-                local audio_data = table.remove(audio_frames, 1)
+                local audio_data = table.remove(buffer.audio, 1)
                 if audio_data then
-                    local buffer = textutils.unserialiseJSON(audio_data)
-
-                    while not speaker.playAudio(buffer, 1) do
-                        utils.yield()
-                    end
+                    local audio_buffer = textutils.unserialiseJSON(audio_data)
+                    playAudioToSpeakers(audio_buffer)
                 end
             end,
             function()
-                local video_frame = table.remove(video_frames, 1)
+                local video_frame = table.remove(buffer.video, 1)
                 if video_frame then
                     renderer.renderVideoFrame(video_frame, monitors)
                 end
             end
         )
-        local duration = averageRender(os.clock() - start)
-        print("Render: " .. math.floor(duration * 10000) / 10 .. "ms")
     end
 
-    local function play()
-        playVideoFrame(true)
-        while true do
-            if is_over and (#video_frames == 0 and #audio_frames == 0) then
-                return
-            end
+    local function preloadSpeakers()
+        if not stream.has_audio then
+            return
+        end
 
-            local start = os.clock()
-            playVideoFrame(false)
-            local duration = averageFrame(os.clock() - start)
+        local ADVANCE = 3
+        for i = 1, ADVANCE, 1 do
+            utils.waitUntilTrue(function()
+                return is_over or #buffer.audio > 0
+            end)
+        end
 
-            print("Audio Frames: " .. tostring(#audio_frames))
-            print("Video Frames: " .. tostring(#video_frames))
-            print("Frame: " .. math.floor(duration * 10000) / 10 .. "ms")
+        local audio_data = table.remove(buffer.audio, 1)
+        if audio_data then
+            local audio_frame = textutils.unserialiseJSON(audio_data)
+            playAudioToSpeakers(audio_frame)
         end
     end
 
-    parallel.waitForAll(streamVideo, play)
-    pcall(function() ws_video.close() end)
-    pcall(function() ws_audio.close() end)
-    print("Stream Over")
+    local function play()
+        preloadSpeakers()
+        local videoStart = os.clock()
+        ensureBuffer()
+
+        while true do
+            if is_over and (#buffer.video == 0 and #buffer.audio == 0) then
+                return
+            end
+
+            local frameTimer = utils.createAverageTimer("frame-start")
+            ensureBuffer()
+
+            local renderTimer = utils.createAverageTimer("render-start")
+            playVideoFrame()
+            local frameDuration = frameTimer.get()
+            local renderDuration = renderTimer.get()
+            local totalDuration = os.clock() - videoStart
+
+            writeInfo(1, "        Time: " .. utils.round(totalDuration, 2) .. "s")
+            writeInfo(2, "  Render Dur: " .. utils.round(renderDuration * 1000, 2) .. "ms")
+            writeInfo(3, "Playback Dur: " .. utils.round(frameDuration * 1000, 2) .. "ms")
+            if is_over then
+                writeInfo(5, "      Stream: Ended")
+            else
+                writeInfo(5, "      Stream: Fine")
+            end
+            writeInfo(6, "      Buffer: Fine")
+            writeInfo(7, "Audio Buffer: " .. tostring(#buffer.audio))
+            writeInfo(8, "Video Buffer: " .. tostring(#buffer.video))
+
+            local size = 0
+            for _, frame in ipairs(buffer.audio) do
+                size = size + #frame
+            end
+            for _, frame in ipairs(buffer.video) do
+                size = size + #frame
+            end
+
+            writeInfo(9, " Buffer Size: " .. utils.round(size / 1024 / 1024, 1) .. "mb")
+        end
+    end
+
+    parallel.waitForAll(stream.receive, play)
+    stream.close()
 end
 
 
+window_banner.setBackgroundColor(colors.gray)
+window_banner.setTextColor(colors.lightBlue)
 
-term.redirect(peripheral.wrap("left"))
-term.clear()
-term.setCursorPos(1, 1)
-print("Youtube Player")
+local BANNER = "YOUTUBE PLAYER"
+window_banner.write(string.rep(" ", width))
 
+window_banner.setCursorPos((width - #BANNER) / 2, 1)
+window_banner.write(BANNER)
+
+local mw, mh = display.getIndivualMonitorSize()
+local res_w = tostring(display.MONITOR_ROWS * mw)
+local res_h = tostring(display.MONITOR_COLS * mh)
+writeInfo(11, "   Resolution: " .. res_w .. "x" .. res_h)
+writeInfo(12, "         Rows: " .. tostring(display.MONITOR_ROWS) .. " x " .. tostring(mw) .. "px")
+writeInfo(13, "         Cols: " .. tostring(display.MONITOR_COLS) .. " x " .. tostring(mh) .. "px")
 while true do
     local success, msg = pcall(playVideo)
     if not success then

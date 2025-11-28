@@ -1,104 +1,79 @@
-import typing as t
 from fastapi import FastAPI, WebSocket, Query, Response
-from tqdm import tqdm
-from pathlib import Path
-from random import randint, sample
 import uvicorn
+from modules import create, streams, monitor
 
-import video, audio
-import json
-from dataclasses import dataclass
 
 app = FastAPI()
 
-FILEPATH = "./data/wall.mp4"
-# FILEPATH = "./data/dance.mov"
 
-FOLDER = Path("D:/Hydrus/Memes/client_files")
+@app.websocket("/stream/video")
+async def _(websocket: WebSocket, id: str = Query()):
+    with streams.aqquire_stream(id) as stream:
+        await websocket.accept()
 
-FILES = []
-for dir in FOLDER.iterdir():
-    for file in dir.iterdir():
-        if file.name.endswith("mp4"):
-            FILES.append(file)
+        while True:
+            try:
+                batch_size = int(await websocket.receive_text())
+                for _ in range(batch_size):
+                    frame = next(stream.video)
+                    await websocket.send_text(frame)
+            except StopIteration:
+                await websocket.send_text("END")
+                return
 
-@dataclass
-class Stream:
-    display: video.MonitorDisplay
-    video: t.Generator[str]
-    audio: t.Generator[str] | None
 
-streams: dict[int, Stream] = {}
+@app.websocket("/stream/audio")
+async def _(websocket: WebSocket, id: str = Query()):
+    with streams.aqquire_stream(id) as stream:
+        if not stream.audio:
+            print(f"Stream audio '{id}' not found")
+            return Response(status_code=400)
+
+        await websocket.accept()
+
+        while True:
+            try:
+                batch_size = int(await websocket.receive_text())
+                for _ in range(batch_size):
+                    frame = next(stream.audio)
+                    await websocket.send_text(frame)
+            except StopIteration:
+                await websocket.send_text("END")
+                return
+
 
 @app.get("/start/stream")
-async def _():
-    id = randint(0, 2 ** 16)
-    stream = Stream(
-        display=video.DISPLAY,
-        video=video.stream_livestream(video.DISPLAY),
-        audio=None
-    )
-    streams[id] = stream
-    return id
-
-@app.get("/start/video")
-async def _():
-    id = randint(0, 2 ** 16)
-    filepath = FILEPATH
-    # filepath = sample(FILES,k=1)[0]
-    stream = Stream(
-        display=video.DISPLAY,
-        video=video.stream_video(filepath, video.DISPLAY),
-        audio=audio.stream_video_file(filepath, 20)
-    )
-    streams[id] = stream
-    return id
-
-
-@app.websocket("/video")
-async def _(websocket: WebSocket, id: int = Query()):
-    if id not in streams:
-        return Response(status_code=404)
-
-    await websocket.accept()
-    stream = streams[id].video
-
-    while True:
-        try:
-
-            batch_size = int(await websocket.receive_text())
-            for _ in range(batch_size):
-                frame = next(stream)
-                await websocket.send_text(frame)
-        except StopIteration:
-            await websocket.send_text("END")
-            break
-
-
-@app.websocket("/audio")
-async def _(websocket: WebSocket, id: int = Query()):
-    if id not in streams:
-        return Response(status_code=404)
-
-    stream = streams[id].audio
-    if not stream:
+async def _(display_str: str = Query(alias="display")):
+    display = monitor.MonitorDisplay.from_display_string(display_str)
+    if not display:
         return Response(status_code=400)
 
-    await websocket.accept()
+    return create.create_livestream_stream(display)
 
-    while True:
-        try:
-            batch_size = int(await websocket.receive_text())
-            for _ in range(batch_size):
-                frame = next(stream)
-                data = json.dumps(frame)
-                await websocket.send_text(data)
-        except StopIteration:
-            await websocket.send_text("END")
-            break
+
+@app.get("/start/file")
+async def _(filename: str = Query(), display_str: str = Query(alias="display")):
+    display = monitor.MonitorDisplay.from_display_string(display_str)
+    if not display:
+        return Response(status_code=400)
+
+    stream_id = create.create_file_stream(filename, display)
+    return stream_id
+
+
+@app.get("/start/youtube")
+async def _(id: str = Query(), display_str: str = Query(alias="display")):
+    display = monitor.MonitorDisplay.from_display_string(display_str)
+    if not display:
+        return Response(status_code=400)
+
+    stream_id = create.create_youtube_stream(id, display)
+
+    if not stream_id:
+        return Response(status_code=404)
+    else:
+        return stream_id
 
 
 if __name__ == "__main__":
-    # video_frames = list(tqdm(video.stream_video(FILEPATH, video.DISPLAY)))
-    audio_frames = list(tqdm(audio.stream_video_file(FILEPATH, 20)))
-    # uvicorn.run(app, port=8000)
+    uvicorn.run(app, port=8000)

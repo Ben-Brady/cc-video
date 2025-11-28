@@ -19,8 +19,36 @@ function exports.waitUntilTrue(func)
     end
 end
 
+function exports.createTimer()
+    local start = os.clock()
 
-function exports.createAverage(func)
+    return {
+        get = function()
+            return os.clock() - start
+        end
+    }
+end
+
+---@type table<string, function>
+local timers = {}
+
+function exports.createAverageTimer(id)
+    if timers[id] == nil then
+        timers[id] = exports.createAverage()
+    end
+
+    local start = os.clock()
+
+    return {
+        get = function()
+            local duration = os.clock() - start
+            local average = timers[id]
+            return average(duration)
+        end
+    }
+end
+
+function exports.createAverage()
     local total = 0
     local count = 0
 
@@ -29,6 +57,13 @@ function exports.createAverage(func)
         count = count + 1
         return total / count
     end
+end
+
+---@param value number
+---@param places number
+---@return string
+function exports.round(value, places)
+    return string   .format("%.2f", value)
 end
 
 return exports
