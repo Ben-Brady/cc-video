@@ -12,21 +12,11 @@ def tee(stream: t.IO[bytes]) -> tuple[t.IO[bytes], t.IO[bytes]]:
     b_queue = Queue()
 
     Thread(
-        target=_read_into_queues,
-        args=(stream, [a_queue, b_queue]),
-        daemon=True
+        target=_read_into_queues, args=(stream, [a_queue, b_queue]), daemon=True
     ).start()
 
-    Thread(
-        target=_write_to_pipe,
-        args=(a_queue, aw_fd, "A"),
-        daemon=True
-    ).start()
-    Thread(
-        target=_write_to_pipe,
-        args=(b_queue, bw_fd, "B"),
-        daemon=True
-    ).start()
+    Thread(target=_write_to_pipe, args=(a_queue, aw_fd, "A"), daemon=True).start()
+    Thread(target=_write_to_pipe, args=(b_queue, bw_fd, "B"), daemon=True).start()
 
     a = open(ar_fd, "rb")
     b = open(br_fd, "rb")
@@ -35,18 +25,15 @@ def tee(stream: t.IO[bytes]) -> tuple[t.IO[bytes], t.IO[bytes]]:
 
 def _read_into_queues(stream: t.IO[bytes], queues: list[queue.Queue]):
     CHUNK_SIZE = 1024 * 32
-    try:
-        while True:
-            data = stream.read(CHUNK_SIZE)
+    while True:
+        data = stream.read(CHUNK_SIZE)
 
-            if len(data) > 0:
-                [queue.put(data) for queue in queues]
-            else:
-                stream.close()
-                [queue.shutdown() for queue in queues]
-                return
-    except Exception as e:
-        print(e)
+        if len(data) > 0:
+            [queue.put(data) for queue in queues]
+        else:
+            stream.close()
+            [queue.shutdown() for queue in queues]
+            return
 
 
 def _write_to_pipe(queue: Queue, fd: int, name: str):
@@ -63,8 +50,6 @@ def _write_to_pipe(queue: Queue, fd: int, name: str):
         except ShutDown:
             f.close()
             return
-        except Exception as e:
-            print(e)
         else:
             total += len(data)
 

@@ -76,6 +76,7 @@ def ffmpeg_stream_video_frames(
     cmd += ["-f", "rawvideo"]
     cmd += ["-pix_fmt", "rgb24"]
     cmd += ["-"]
+    print(" ".join(cmd))
 
     p = sp.Popen(cmd, stdin=stream, stdout=sp.PIPE, stderr=sp.DEVNULL)
 

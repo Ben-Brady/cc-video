@@ -1,7 +1,7 @@
 local exports = {}
 
-exports.MONITOR_ROWS = 6
-exports.MONITOR_COLS = 11
+exports.MONITOR_ROWS = 5
+exports.MONITOR_COLS = 8
 
 function exports.calibrate()
     local ids = {}
@@ -55,7 +55,7 @@ function exports.getIndivualMonitorSize()
     return width, height
 end
 
-function exports.resetMonitors()
+local function resetMonitors()
     local colorIndexs = { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768 }
 
     ---@type Monitor[]
@@ -76,4 +76,5 @@ function exports.resetMonitors()
     return monitors
 end
 
+resetMonitors()
 return exports

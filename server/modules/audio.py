@@ -23,19 +23,19 @@ def stream_audio(stream: t.IO[bytes]) -> t.Generator[str]:
     ]
     filters += ["loudnorm=I=-8:LRA=7:tp=-0.1"]
 
-    conversion_command = ["ffmpeg"]
-    conversion_command += ["-i", "-"]
-    conversion_command += ["-vn"]  # no video
-    conversion_command += ["-ar", "48000"]  # 48KHz
-    conversion_command += ["-ac", "1"]  # 1 channel
-    conversion_command += ["-filter:a", ",".join(filters)]  # audio normalisation
-    conversion_command += ["-f", "s8"]  # 1 byte
-    conversion_command += ["-y"]  # overwrite output
-    conversion_command += ["-"]
+    cmd = ["ffmpeg"]
+    cmd += ["-i", "-"]
+    cmd += ["-vn"]  # no video
+    cmd += ["-ar", "48000"]  # 48KHz
+    cmd += ["-ac", "1"]  # 1 channel
+    cmd += ["-filter:a", ",".join(filters)]  # audio normalisation
+    cmd += ["-f", "s8"]  # 1 byte
+    cmd += ["-y"]  # overwrite output
+    cmd += ["-"]
 
-    print(" ".join(conversion_command))
+    print(" ".join(cmd))
     p = sp.Popen(
-        conversion_command,
+        cmd,
         stdin=stream,
         stdout=sp.PIPE,
         stderr=sp.DEVNULL,

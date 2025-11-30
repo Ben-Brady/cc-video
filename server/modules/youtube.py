@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import subprocess as sp
 import atexit
 
+
 @dataclass
 class YoutubeStream:
     resolution: tuple[int, int]
@@ -11,21 +12,20 @@ class YoutubeStream:
 
 
 def get_youtube_stream(url: str) -> YoutubeStream | None:
-    args = ["yt-dlp"]
-    args += [url]
-    args += ["--js-runtimes", "node"]
-    args += ["--no-playlist"]
-    args += ["--quiet"]
-    args += ["-f", "bestvideo[height=480]+bestaudio"]
-    args += ["-o", "-"]
-    print(" ".join(args))
-    p = sp.Popen(args, stdout=sp.PIPE)
+    cmd = ["yt-dlp"]
+    cmd += [url]
+    cmd += ["--js-runtimes", "node"]
+    cmd += ["--no-playlist"]
+    cmd += ["--quiet"]
+    cmd += ["-f", "bestvideo[height=480]+bestaudio"]
+    cmd += ["-o", "-"]
+    print(" ".join(cmd))
+
+    p = sp.Popen(cmd, stdout=sp.PIPE)
     atexit.register(lambda: p.kill())
 
     # TODO Don't do fixed res, learn how to retrive res
     res = 854, 480
     return YoutubeStream(
-        resolution=res,
-        stream=t.cast(t.IO[bytes], p.stdout),
-        process=p
+        resolution=res, stream=t.cast(t.IO[bytes], p.stdout), process=p
     )

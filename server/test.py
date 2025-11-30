@@ -1,15 +1,14 @@
 from tqdm import tqdm
-from tee import tee
-
-import video, audio, youtube
+from modules import video, audio, tee, monitor, create, streams
 
 FILEPATH = "./data/heavy.mp4"
 
-res = video.get_video_resolution(FILEPATH)
-f = open(FILEPATH, "rb")
-stream_1, stream_2 = tee(f)
+display = monitor.MonitorDisplay(rows=5, columns=11, monitorHeight=36, monitorWidth=24)
+stream_id = create.create_youtube_stream("YlLn5DXTRxI", display)
+if not stream_id:
+    raise ValueError("Youtube vivode not found")
 
-video_frames = video.stream_video(stream_1, res, video.DISPLAY)
-audio_frames = audio.stream_audio(stream_2, 20)
-frames = tqdm(desc="Video", iterable=zip(video_frames, audio_frames), smoothing=0.1)
-list(frames)
+with streams.aqquire_stream(stream_id) as stream:
+    iterable = zip(stream.video, stream.audio)
+    frames = tqdm(desc="Video", iterable=iterable, smoothing=0.1)
+    list(frames)

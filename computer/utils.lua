@@ -63,7 +63,17 @@ end
 ---@param places number
 ---@return string
 function exports.round(value, places)
-    return string   .format("%.2f", value)
+    return string.format("%.2f", value)
+end
+
+---@param func function
+---@return boolean
+function exports.safecall(func)
+    local success, msg = pcall(func)
+    if not success then
+        print(msg)
+    end
+    return success
 end
 
 return exports

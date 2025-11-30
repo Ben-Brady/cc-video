@@ -19,8 +19,8 @@ def calculate_permonitor(display: monitor.MonitorDisplay) -> tuple[int, int]:
 
 def calculate_display_size(display: monitor.MonitorDisplay) -> tuple[int, int]:
     perMonitorWidth, perMonitorHeight = calculate_permonitor(display)
-    totalWidth = perMonitorWidth * display.monitorColumns
-    totalHeight = perMonitorHeight * display.monitorRows
+    totalWidth = perMonitorWidth * display.columns
+    totalHeight = perMonitorHeight * display.rows
     return (totalWidth, totalHeight)
 
 
@@ -92,8 +92,8 @@ def encode_frame(
     perMonitorWidth, perMonitorHeight = calculate_permonitor(display)
 
     monitors: list[Image.Image] = []
-    for y in range(display.monitorRows):
-        for x in range(display.monitorColumns):
+    for y in range(display.rows):
+        for x in range(display.columns):
             left = (x * perMonitorWidth) - L_MARGIN
             right = ((x + 1) * perMonitorWidth) - R_MARGIN
             upper = (y * perMonitorHeight) + T_MARGIN

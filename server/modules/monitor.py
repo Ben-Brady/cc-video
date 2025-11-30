@@ -4,8 +4,9 @@ from dataclasses import dataclass
 
 @dataclass
 class MonitorDisplay:
-    monitorRows: int
-    monitorColumns: int
+    rows: int
+    columns: int
+
     monitorWidth: int
     monitorHeight: int
 
@@ -21,8 +22,8 @@ class MonitorDisplay:
         monitorHeight = int(parts[3])
 
         return MonitorDisplay(
-            monitorRows=monitorRows,
-            monitorColumns=monitorColumns,
+            rows=monitorRows,
+            columns=monitorColumns,
             monitorWidth=monitorWidth,
             monitorHeight=monitorHeight,
         )

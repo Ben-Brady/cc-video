@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing as t
 from dataclasses import dataclass
 from random import randint
@@ -10,6 +11,7 @@ streams: dict[str, Stream] = {}
 
 @dataclass
 class Stream:
+    id: str
     display: monitor.MonitorDisplay
     video: t.Generator[str]
     audio: t.Generator[str] | None = None
@@ -23,13 +25,14 @@ def create_stream(
     audio: t.Generator[str] | None = None,
     onclose: t.Callable[[], None] | None = None,
 ):
+    stream_id = str(randint(0, 2**16))
     stream = Stream(
+        id=stream_id,
         display=display,
         video=video,
         audio=audio,
         onclose=onclose,
     )
-    stream_id = str(randint(0, 2**16))
     streams[stream_id] = stream
     atexit.register(lambda: close_stream(stream_id))
 
