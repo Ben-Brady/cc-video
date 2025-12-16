@@ -19,7 +19,7 @@ class ByteWriter:
     def build(self):
         if self.cursor != len(self._array):
             raise ValueError(
-                "Did not write correct amount to ByteWriter:\n"
+                "Did not write correct ith measuamount to ByteWriter:\n"
                 f"expected={len(self._array)} actual={self.cursor}"
             )
 

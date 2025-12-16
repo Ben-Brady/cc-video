@@ -19,14 +19,16 @@ end
 ---@param frame string
 ---@param speakers Speaker[]
 function audio.playAudioFrame(frame, speakers)
-    -- local buffer = table.pack(string.byte(frame, 1, #frame))
-    -- for i = 1, #buffer, 1 do
-    --     buffer[i] = 127 - buffer[i]
-    -- end
-    local buffer = textutils.unserialiseJSON(frame)
-    if #buffer > 0 then
-        playAudioToSpeakers(speakers, buffer)
+    if #frame == 0 then
+        return
     end
+
+    local buffer = table.pack(string.byte(frame, 1, #frame))
+    for i = 1, #buffer, 1 do
+        buffer[i] = buffer[i] - 128
+    end
+
+    playAudioToSpeakers(speakers, buffer)
 end
 
 return audio

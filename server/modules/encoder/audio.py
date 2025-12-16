@@ -1,6 +1,7 @@
 import io
 import json
 import typing as t
+import numpy as np
 import subprocess as sp
 
 AudioChunk: t.TypeAlias = t.Sequence[float]
@@ -28,7 +29,7 @@ def start_ffmpeg(stream: t.IO[bytes]) -> sp.Popen:
     cmd += ["-ar", "48000"]  # 48KHz
     cmd += ["-ac", "1"]  # 1 channel
     cmd += ["-filter:a", ",".join(filters)]  # audio normalisation
-    cmd += ["-f", "s8"]  # 1 byte
+    cmd += ["-f", "u8"]  # 1 byte
     cmd += ["-y"]  # overwrite output
     cmd += ["-"]
 
@@ -46,9 +47,7 @@ def generate_audio_chunks(p: sp.Popen) -> t.Generator[bytes]:
 
     while True:
         data = stdout.read(size)
-        samples = memoryview(bytearray(data)).cast("b").tolist()
-        yield json.dumps(samples).encode()
-        # yield samples
+        yield data
 
         if len(data) < size:
             return

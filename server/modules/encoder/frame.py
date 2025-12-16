@@ -22,8 +22,10 @@ R_MARGIN = 0
 averages: dict[str, list[float]] = {}
 
 
+lastPrint = time.time()
 @contextmanager
 def measure(name: str):
+    global lastPrint
     averages.setdefault(name, [])
 
     start = time.time()
@@ -31,7 +33,9 @@ def measure(name: str):
     duration = (time.time() - start) * 1000
     averages[name].append(duration)
     avg_duration = sum(averages[name]) / len(averages[name])
-    print(f"{name}: {avg_duration:.1f}ms")
+    if (time.time() - lastPrint) > 0.1:
+        lastPrint = time.time()
+        print(f"{name}: {avg_duration:.1f}ms")
 
 
 def encode_numpy_frame(
@@ -142,45 +146,44 @@ def _encode_frame(
 
 
 def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> bytes:
-    with measure("foo"):
-        index, img, display = arg
+    index, img, display = arg
 
-        RENDER_SIZE = display.monitorWidth * display.monitorHeight
-        PALETTE_SIZE = 16 * 3
-        writer = ByteWriter(PALETTE_SIZE + RENDER_SIZE)
+    RENDER_SIZE = display.monitorWidth * display.monitorHeight
+    PALETTE_SIZE = 16 * 3
+    writer = ByteWriter(PALETTE_SIZE + RENDER_SIZE)
 
-        writer.writeByte(index + 1)
-        writer.writeByte(display.monitorWidth)
-        writer.writeByte(display.monitorHeight)
+    writer.writeByte(index + 1)
+    writer.writeByte(display.monitorWidth)
+    writer.writeByte(display.monitorHeight)
 
-        img = img.quantize(colors=16)
-        assert img.palette, "Image not quantized"
-        palette = img.palette.palette
+    img = img.quantize(colors=16)
+    assert img.palette, "Image not quantized"
+    palette = img.palette.palette
 
-        palette_data = bytearray(48)
-        palette_data[0 : len(palette)] = palette[:48]
+    palette_data = bytearray(48)
+    palette_data[0 : len(palette)] = palette[:48]
 
-        writer.write(palette_data)
+    writer.write(palette_data)
 
-        img_arr = np.array(img)
+    img_arr = np.array(img)
 
-        height = display.monitorHeight * 2
-        width = display.monitorWidth
+    height = display.monitorHeight * 2
+    width = display.monitorWidth
 
-        even_width = width // 2 * 2
-        array_slice = img_arr[0:height, 0:even_width]
+    even_width = width // 2 * 2
+    array_slice = img_arr[0:height, 0:even_width]
 
-        # combine 4 bit values into bytes
-        high_nibbles = array_slice[:, 0::2].astype(np.uint8)
-        low_nibbles = array_slice[:, 1::2].astype(np.uint8)
-        color_data = ((high_nibbles << 4) | (low_nibbles)).tobytes()
+    # combine 4 bit values into bytes
+    high_nibbles = array_slice[:, 0::2].astype(np.uint8)
+    low_nibbles = array_slice[:, 1::2].astype(np.uint8)
+    color_data = ((high_nibbles << 4) | (low_nibbles)).tobytes()
 
-        color_reader = ByteReader(color_data)
+    color_reader = ByteReader(color_data)
 
-        for _ in range(height // 2):
-            text_data = bytes([135 for _ in range(width)])
-            writer.write(text_data)
-            line_color = color_reader.read(width)
-            writer.write(line_color)
+    for _ in range(height // 2):
+        text_data = bytes([135 for _ in range(width)])
+        writer.write(text_data)
+        line_color = color_reader.read(width)
+        writer.write(line_color)
 
-        return writer.build()
+    return writer.build()
