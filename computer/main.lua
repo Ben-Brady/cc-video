@@ -1,25 +1,41 @@
+local player = require("ccv-player")
 local utils = require("utils")
-local renderer = require("render")
-local createReader = require("reader")
-local ui = require("ui")
 local display = require("display")
 local requests = require("requests")
 local streams = require("streams")
-local player = require("player")
+local log = require("log")
+local ui = require("ui")
 
 -- display.calibrate()
 
 local function playVideo()
+    local monitors = display.getMonitors()
+    ---@type Speaker[]
+    local speakers = { peripheral.find("speaker") }
+
     ui.initialise()
-    local stream_id = requests.createYoutubeStream("7AeXrnyv7RA")
-    local stream = streams.connectToStream(stream_id)
-    utils.safecall(function() player.playStream(stream) end)
+    ui.setStream("loading")
+    local stream_id = requests.createYoutubeStream("k7D7OTfa-a4")
+    -- local stream_id = requests.createFileStream("slop.mp4")
+    ui.setStream("fine")
+    local stream = streams.connectToStream(stream_id, 200)
+    utils.safecall(function()
+        local play = player.createPlayer(stream, monitors, speakers)
+        ui.updatePlayerDebug(play.debug)
+        play.run()
+    end)
+    ui.updatePlayerDebug(nil)
+    ui.setStream("none")
     stream.close()
 end
 
 
 while true do
-    -- write("Options: ")
-    utils.safecall(playVideo)
+    parallel.waitForAny(
+        function()
+            utils.safecall(playVideo)
+        end,
+        ui.runUILoop
+    )
     sleep(2)
 end

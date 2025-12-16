@@ -1,45 +1,29 @@
 local exports = {}
 
-local renderer = require("render")
 local ui = require("ui")
-local createReader = require("reader")
+local lualzw = require("lualzw")
 local display = require("display")
 local utils = require("utils")
 local requests = require("requests")
 
 
-local INITIAL_BUFFER_SIZE = 100
-local MAX_BUFFER_SIZE = 200
 local BATCH_SIZE = 20
 
 ---@class Stream
-local stream_type = {}
+---@field buffer {audio: string[], video: string[]}
+---@field hasMoreData boolean
+---@field receive fun(): nil
+---@field close fun(): nil
+---@field nextFrame fun(): (video: string, audio: string | nil)|nil
+---@field waitForAudioBuffer fun(size: number): nil
+---@field waitForVideoBuffer fun(size: number): nil
 
-
----@type {audio: string[], video: string[]}
-stream_type.buffer                        = {}
-stream_type.has_audio                     = false
-stream_type.is_over                       = false
-
-stream_type.receive                       = function() end
-stream_type.close                         = function() end
-stream_type.ensureBufferSuffienctlyLoaded = function() end
----@return string|nil
-stream_type.nextAudioFrame                = function() end
----@return string|nil
-stream_type.nextVideoFrame                = function() end
----@param size number
-stream_type.waitForAudioBuffer            = function(size) end
----@param size number
-stream_type.waitForVideoBuffer            = function(size) end
-
-
----@param stream_id string
+---@param streamId string
+---@param bufferSize number
 ---@return Stream
-function exports.connectToStream(stream_id)
-    ui.setStream("loading")
-    local ws_video = requests.connectToVideoStream(stream_id)
-    local ws_audio = requests.connectToAudioStream(stream_id)
+function exports.connectToStream(streamId, bufferSize)
+    local ws_video = requests.connectToVideoStream(streamId)
+    local ws_audio = requests.connectToAudioStream(streamId)
 
     local video_buffer = {}
     local audio_buffer = {}
@@ -53,8 +37,8 @@ function exports.connectToStream(stream_id)
             end
 
             while true do
-                utils.waitUntilTrue(function()
-                    return #audio_buffer < MAX_BUFFER_SIZE
+                utils.yieldUntil(function()
+                    return #audio_buffer < bufferSize
                 end)
                 ws_audio.send(tostring(BATCH_SIZE))
                 for i = 1, BATCH_SIZE, 1 do
@@ -62,19 +46,19 @@ function exports.connectToStream(stream_id)
                     if audio_frame == "END" then
                         return
                     end
+
                     audio_buffer[#audio_buffer + 1] = audio_frame
                 end
             end
         end, function()
             while true do
-                utils.waitUntilTrue(function()
-                    return #video_buffer < MAX_BUFFER_SIZE
+                utils.yieldUntil(function()
+                    return #video_buffer < bufferSize
                 end)
                 ws_video.send(tostring(BATCH_SIZE))
                 for i = 1, BATCH_SIZE, 1 do
                     local video_frame = ws_video.receive()
                     if video_frame == "END" then
-                        print("Returning")
                         return
                     end
                     video_buffer[#video_buffer + 1] = video_frame
@@ -82,51 +66,48 @@ function exports.connectToStream(stream_id)
             end
         end)
         is_over = true
-        ui.setStream("ended")
     end
 
     ---@param size number
     local function waitForVideoBuffer(size)
-        utils.waitUntilTrue(function()
+        utils.yieldUntil(function()
             return is_over or (#video_buffer > size)
         end)
     end
 
     ---@param size number
     local function waitForAudioBuffer(size)
-        utils.waitUntilTrue(function()
+        utils.yieldUntil(function()
             return is_over or (#audio_buffer > size)
         end)
     end
 
-    ---@return string
-    local function nextVideoFrame()
-        return table.remove(video_buffer, 1)
+    ---@return boolean
+    local function hasMoreData()
+        return not is_over
     end
 
-    ---@return string|nil
-    local function nextAudioFrame()
-        local data = table.remove(audio_buffer, 1)
+    ---@return string
+    local function nextVideoFrame()
+        local data = table.remove(video_buffer, 1)
         if not data then
             return nil
         end
 
-        return textutils.unserialiseJSON(data)
+        -- local timer = utils.createAverageTimer("decompress")
+        -- local decoded = lualzw.decompress(data)
+        -- print(timer.get())
+        return data
     end
 
-    local function ensureBufferSuffienctlyLoaded()
-        local needs_more_data = #video_buffer == 0 or (has_audio and #audio_buffer == 0)
-        -- print("is_over", is_over)
-        -- print("needs_more_data", needs_more_data)
-
-        if not is_over and needs_more_data then
-            ui.setBufferLoading(true)
-            waitForVideoBuffer(INITIAL_BUFFER_SIZE)
-            if has_audio then
-                waitForAudioBuffer(INITIAL_BUFFER_SIZE)
-            end
-            ui.setBufferLoading(false)
+    ---@return string|nil
+    local function nextAudioFrame()
+        ---@type string
+        local data = table.remove(audio_buffer, 1)
+        if not data then
+            return nil
         end
+        return data
     end
 
     local function close()
@@ -139,8 +120,7 @@ function exports.connectToStream(stream_id)
     return {
         receive = receive,
         close = close,
-        is_over = is_over,
-        ensureBufferSuffienctlyLoaded = ensureBufferSuffienctlyLoaded,
+        hasMoreData = hasMoreData,
         waitForVideoBuffer = waitForVideoBuffer,
         waitForAudioBuffer = waitForAudioBuffer,
         nextVideoFrame = nextVideoFrame,

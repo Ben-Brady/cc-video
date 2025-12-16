@@ -1,12 +1,6 @@
-local exports = {}
+local utils = {}
 
-function exports.yield()
-    local id = "ccv:" .. tostring(math.random(0, 10000000))
-    os.queueEvent(id)
-    os.pullEvent(id)
-end
-
-function exports.yieldUntil(func)
+function utils.yieldUntil(func)
     local id = "ccv:" .. tostring(math.random(0, 10000000))
     while true do
         local success = func()
@@ -19,7 +13,7 @@ function exports.yieldUntil(func)
     end
 end
 
-function exports.createTimer()
+function utils.createTimer()
     local start = os.clock()
 
     return {
@@ -32,9 +26,9 @@ end
 ---@type table<string, function>
 local timers = {}
 
-function exports.createAverageTimer(id)
+function utils.createAverageTimer(id)
     if timers[id] == nil then
-        timers[id] = exports.createAverage()
+        timers[id] = utils.createAverage()
     end
 
     local start = os.clock()
@@ -48,7 +42,7 @@ function exports.createAverageTimer(id)
     }
 end
 
-function exports.createAverage()
+function utils.createAverage()
     local total = 0
     local count = 0
 
@@ -62,13 +56,13 @@ end
 ---@param value number
 ---@param places number
 ---@return string
-function exports.round(value, places)
+function utils.round(value, places)
     return string.format("%.2f", value)
 end
 
 ---@param func function
 ---@return boolean
-function exports.safecall(func)
+function utils.safecall(func)
     local success, msg = pcall(func)
     if not success then
         print(msg)
@@ -76,10 +70,8 @@ function exports.safecall(func)
     return success
 end
 
----@param value number
----@return string
-function exports.hex(value)
-
+function utils.waitForNextTick()
+    os.sleep(0)
 end
 
-return exports
+return utils
