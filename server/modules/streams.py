@@ -1,10 +1,11 @@
 from __future__ import annotations
 import typing as t
+import itertools
 from dataclasses import dataclass
 from random import randint
 from contextlib import contextmanager
 import atexit
-from modules import monitor
+from modules.encoder import MonitorDisplay
 
 streams: dict[str, Stream] = {}
 
@@ -12,25 +13,25 @@ streams: dict[str, Stream] = {}
 @dataclass
 class Stream:
     id: str
-    display: monitor.MonitorDisplay
-    video: t.Generator[str]
-    audio: t.Generator[str] | None = None
+    display: MonitorDisplay
+    video: t.Iterator[bytes]
+    audio: t.Iterator[bytes] | None = None
     onclose: t.Callable[[], None] | None = None
     counter = 0
 
 
 def create_stream(
-    display: monitor.MonitorDisplay,
-    video: t.Generator[str],
-    audio: t.Generator[str] | None = None,
+    display: display.MonitorDisplay,
+    video: t.Iterator[bytes],
+    audio: t.Iterator[bytes] | None = None,
     onclose: t.Callable[[], None] | None = None,
 ):
     stream_id = str(randint(0, 2**16))
     stream = Stream(
         id=stream_id,
         display=display,
-        video=video,
-        audio=audio,
+        video=ensure_stream_started(video),
+        audio=ensure_stream_started(audio) if audio else None,
         onclose=onclose,
     )
     streams[stream_id] = stream
@@ -53,8 +54,7 @@ def close_stream(id: str):
 @contextmanager
 def aqquire_stream(id: str):
     if id not in streams:
-        print(f"Stream '{id}' not found")
-        raise KeyError(f"Can't find stream")
+        raise KeyError(f"Stream '{id}' not found")
 
     stream = streams[id]
     stream.counter += 1
@@ -66,3 +66,11 @@ def aqquire_stream(id: str):
 
         if stream.counter <= 0:
             close_stream(id)
+
+
+def ensure_stream_started[T](iterable: t.Iterator[T]) -> t.Iterator[T]:
+    try:
+        first = next(iterable)
+        return itertools.chain([first], iterable)
+    except StopIteration:
+        return iter([])

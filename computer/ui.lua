@@ -3,9 +3,9 @@ local display = require("display")
 
 local exports = {}
 
-local monitor = peripheral.wrap("right")
+local monitor = peripheral.wrap("right") or peripheral.wrap("left") or peripheral.wrap("top")
 if monitor == nil then
-    error("Monitor not on right side")
+    error("No debug monitor found")
 end
 ---@cast monitor Monitor
 

@@ -1,5 +1,6 @@
 local utils = require("ccv-player.utils")
 local ccv = require("ccv")
+local parse = require("ccv.parse")
 
 local player = {}
 
@@ -46,7 +47,7 @@ function player.createPlayer(stream, monitors, speakers)
 
     local function preloadSpeakers()
         if stream.has_audio then
-            stream.waitForAudioBuffer(AUDIO_OFFSET)
+            stream.wait_for_audio_buffer(AUDIO_OFFSET)
 
             for i = 1, AUDIO_OFFSET, 1 do
                 playNextAudioFrame()
@@ -83,11 +84,11 @@ function player.createPlayer(stream, monitors, speakers)
     local function ensureBufferSuffienctlyLoaded()
         local needs_more_data = #stream.buffer.video == 0 or (stream.has_audio and #stream.buffer.audio == 0)
 
-        if not stream.has_data and needs_more_data then
+        if not stream.has_more_data() and needs_more_data then
             debug.isBuffering = true
-            stream.waitForVideoBuffer(INITIAL_BUFFER_SIZE)
+            stream.wait_for_video_buffer(INITIAL_BUFFER_SIZE)
             if stream.has_audio then
-                stream.waitForAudioBuffer(INITIAL_BUFFER_SIZE)
+                stream.wait_for_audio_buffer(INITIAL_BUFFER_SIZE)
             end
             debug.isBuffering = false
         end
@@ -116,7 +117,7 @@ function player.createPlayer(stream, monitors, speakers)
 
         while true do
             local buffersEmpty = #buffer.video == 0 and #buffer.audio == 0
-            if stream.has_data and buffersEmpty then
+            if not stream.has_more_data() and buffersEmpty then
                 return
             end
 

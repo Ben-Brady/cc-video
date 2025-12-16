@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, Query, Response
 import uvicorn
-from modules import create, streams, monitor
+from modules import create, streams
+from modules.encoder.display import MonitorDisplay
 
 
 app = FastAPI()
@@ -16,7 +17,7 @@ async def _(websocket: WebSocket, id: str = Query()):
                 batch_size = int(await websocket.receive_text())
                 for _ in range(batch_size):
                     frame = next(stream.video)
-                    await websocket.send_text(frame)
+                    await websocket.send_bytes(frame)
             except StopIteration:
                 await websocket.send_text("END")
                 return
@@ -26,7 +27,6 @@ async def _(websocket: WebSocket, id: str = Query()):
 async def _(websocket: WebSocket, id: str = Query()):
     with streams.aqquire_stream(id) as stream:
         if not stream.audio:
-            print(f"Stream audio '{id}' not found")
             return Response(status_code=400)
 
         await websocket.accept()
@@ -36,7 +36,7 @@ async def _(websocket: WebSocket, id: str = Query()):
                 batch_size = int(await websocket.receive_text())
                 for _ in range(batch_size):
                     frame = next(stream.audio)
-                    await websocket.send_text(frame)
+                    await websocket.send_bytes(frame)
             except StopIteration:
                 await websocket.send_text("END")
                 return
@@ -44,7 +44,7 @@ async def _(websocket: WebSocket, id: str = Query()):
 
 @app.get("/start/stream")
 async def _(display_str: str = Query(alias="display")):
-    display = monitor.MonitorDisplay.from_display_string(display_str)
+    display = decode_display_string(display_str)
     if not display:
         return Response(status_code=400)
 
@@ -53,7 +53,7 @@ async def _(display_str: str = Query(alias="display")):
 
 @app.get("/start/file")
 async def _(filename: str = Query(), display_str: str = Query(alias="display")):
-    display = monitor.MonitorDisplay.from_display_string(display_str)
+    display = decode_display_string(display_str)
     if not display:
         return Response(status_code=400)
 
@@ -63,7 +63,7 @@ async def _(filename: str = Query(), display_str: str = Query(alias="display")):
 
 @app.get("/start/youtube")
 async def _(id: str = Query(), display_str: str = Query(alias="display")):
-    display = monitor.MonitorDisplay.from_display_string(display_str)
+    display = decode_display_string(display_str)
     if not display:
         return Response(status_code=400)
 
@@ -73,6 +73,19 @@ async def _(id: str = Query(), display_str: str = Query(alias="display")):
         return Response(status_code=404)
     else:
         return stream_id
+
+
+def decode_display_string(monitor_str: str) -> "MonitorDisplay|None":
+    parts = monitor_str.split("-")
+    if len(parts) != 4:
+        return None
+
+    return MonitorDisplay(
+        rows=int(parts[0]),
+        columns=int(parts[1]),
+        monitorWidth=int(parts[2]),
+        monitorHeight=int(parts[3]),
+    )
 
 
 if __name__ == "__main__":

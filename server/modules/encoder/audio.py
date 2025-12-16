@@ -3,19 +3,18 @@ import json
 import typing as t
 import subprocess as sp
 
-
 AudioChunk: t.TypeAlias = t.Sequence[float]
 
 SAMPLE_RATE = 48_000
 FRAMERATE = 20
 
 
-def stream_audio_from_file(filepath: str) -> t.Generator[str]:
-    with open(filepath, "rb") as f:
-        yield from stream_audio(f)
+def stream_audio(stream: t.IO[bytes]) -> t.Generator[bytes]:
+    process = start_ffmpeg(stream)
+    return generate_audio_chunks(process)
 
 
-def stream_audio(stream: t.IO[bytes]) -> t.Generator[str]:
+def start_ffmpeg(stream: t.IO[bytes]) -> sp.Popen:
     filters = []
     filters += ["lowpass=f=18000"]
     filters += [
@@ -33,22 +32,23 @@ def stream_audio(stream: t.IO[bytes]) -> t.Generator[str]:
     cmd += ["-y"]  # overwrite output
     cmd += ["-"]
 
-    print(" ".join(cmd))
-    p = sp.Popen(
+    return sp.Popen(
         cmd,
         stdin=stream,
         stdout=sp.PIPE,
         stderr=sp.DEVNULL,
     )
 
+
+def generate_audio_chunks(p: sp.Popen) -> t.Generator[bytes]:
     stdout = t.cast(io.BytesIO, p.stdout)
     size = int(SAMPLE_RATE / FRAMERATE)
+
     while True:
         data = stdout.read(size)
-        view = memoryview(bytearray(data))
-        samples = view.cast("b").tolist()
-        data = json.dumps(samples)
-        yield data
+        samples = memoryview(bytearray(data)).cast("b").tolist()
+        yield json.dumps(samples).encode()
+        # yield samples
 
         if len(data) < size:
             return

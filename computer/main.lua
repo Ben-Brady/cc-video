@@ -6,6 +6,7 @@ local streams = require("streams")
 local log = require("log")
 local ui = require("ui")
 
+-- Uncomment to calibrate monitors
 -- display.calibrate()
 
 local function playVideo()
@@ -15,8 +16,8 @@ local function playVideo()
 
     ui.initialise()
     ui.setStream("loading")
-    local stream_id = requests.createYoutubeStream("k7D7OTfa-a4")
-    -- local stream_id = requests.createFileStream("slop.mp4")
+    -- local stream_id = requests.createYoutubeStream("k7D7OTfa-a4")
+    local stream_id = requests.createFileStream("slop.mp4")
     ui.setStream("fine")
     local stream = streams.connectToStream(stream_id, 200)
     utils.safecall(function()

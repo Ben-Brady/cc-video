@@ -11,12 +11,13 @@ local BATCH_SIZE = 20
 
 ---@class Stream
 ---@field buffer {audio: string[], video: string[]}
----@field hasMoreData boolean
+---@field has_audio boolean
 ---@field receive fun(): nil
+---@field has_more_data fun(): boolean
 ---@field close fun(): nil
 ---@field nextFrame fun(): (video: string, audio: string | nil)|nil
----@field waitForAudioBuffer fun(size: number): nil
----@field waitForVideoBuffer fun(size: number): nil
+---@field wait_for_audio_buffer fun(size: number): nil
+---@field wait_for_video_buffer fun(size: number): nil
 
 ---@param streamId string
 ---@param bufferSize number
@@ -69,21 +70,21 @@ function exports.connectToStream(streamId, bufferSize)
     end
 
     ---@param size number
-    local function waitForVideoBuffer(size)
+    local function wait_for_video_buffer(size)
         utils.yieldUntil(function()
             return is_over or (#video_buffer > size)
         end)
     end
 
     ---@param size number
-    local function waitForAudioBuffer(size)
+    local function wait_for_audio_buffer(size)
         utils.yieldUntil(function()
             return is_over or (#audio_buffer > size)
         end)
     end
 
     ---@return boolean
-    local function hasMoreData()
+    local function has_more_data()
         return not is_over
     end
 
@@ -120,9 +121,9 @@ function exports.connectToStream(streamId, bufferSize)
     return {
         receive = receive,
         close = close,
-        hasMoreData = hasMoreData,
-        waitForVideoBuffer = waitForVideoBuffer,
-        waitForAudioBuffer = waitForAudioBuffer,
+        has_more_data = has_more_data,
+        wait_for_video_buffer = wait_for_video_buffer,
+        wait_for_audio_buffer = wait_for_audio_buffer,
         nextVideoFrame = nextVideoFrame,
         nextAudioFrame = nextAudioFrame,
         has_audio = has_audio,
