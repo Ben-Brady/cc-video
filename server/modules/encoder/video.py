@@ -5,7 +5,10 @@ import multiprocessing as mp
 from concurrent.futures import ThreadPoolExecutor
 import json
 
-from .frame import encode_numpy_frame
+from .frame import (
+    _encode_numpy_frame,
+    caclulate_target_res,
+)
 from .display import MonitorDisplay
 from .tee import tee
 
@@ -13,11 +16,13 @@ from .tee import tee
 def stream_video(stream: t.IO[bytes], display: MonitorDisplay) -> t.Iterator[bytes]:
     ffprobe_io, ffmpeg_io = tee(stream)
     res = get_video_resolution(ffprobe_io)
-    frame_stream = start_ffmpeg_stream(ffmpeg_io, res)
+
+    targetRes = caclulate_target_res(res, display)
+    frame_stream = start_ffmpeg_stream(ffmpeg_io, targetRes)
 
     with ThreadPoolExecutor(max_workers=mp.cpu_count()) as executor:
         for frame in frame_stream:
-            yield encode_numpy_frame(display, frame, executor)
+            yield _encode_numpy_frame(display, frame, executor)
 
 
 def get_video_resolution(
@@ -30,7 +35,7 @@ def get_video_resolution(
     cmd += ["-"]
 
     process = sp.Popen(cmd, stdin=stream, stdout=sp.PIPE, stderr=sp.DEVNULL)
-    data = process.stdout.read().decode()
+    data = process.stdout.read().decode()  # type: ignore
     info = json.loads(data)
 
     assert "streams" in info, "Could not find streams"
@@ -66,7 +71,7 @@ def start_ffmpeg_stream(
 
     while True:
         size = width * height * 3
-        data = process.stdout.read(size)
+        data = process.stdout.read(size)  # type: ignore
         if len(data) < size:
             return
 

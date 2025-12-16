@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class MonitorDisplay:
     rows: int
     columns: int

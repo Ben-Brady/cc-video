@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image, ImagePalette
 from concurrent.futures import ThreadPoolExecutor
 from random import randint
+from hashlib import sha256
 import cv2
 from contextlib import contextmanager
 from . import display
@@ -20,25 +21,41 @@ R_MARGIN = 0
 
 
 averages: dict[str, list[float]] = {}
+last_prints: dict[str, float] = {}
 
 
-lastPrint = time.time()
 @contextmanager
 def measure(name: str):
-    global lastPrint
     averages.setdefault(name, [])
+    last_prints.setdefault(name, 0)
 
     start = time.time()
     yield
     duration = (time.time() - start) * 1000
     averages[name].append(duration)
+
+    time_since_print = time.time() - last_prints[name]
+    PRINT_DELAY = 0.25
+    if time_since_print < PRINT_DELAY:
+        return
+
+    last_prints[name] = time.time()
     avg_duration = sum(averages[name]) / len(averages[name])
-    if (time.time() - lastPrint) > 0.1:
-        lastPrint = time.time()
-        print(f"{name}: {avg_duration:.1f}ms")
+    print(f"{name}: {avg_duration:.3f}ms")
 
 
-def encode_numpy_frame(
+def encode_frame(
+    display: display.MonitorDisplay,
+    frame: np.ndarray | Image.Image,
+    executor: ThreadPoolExecutor,
+) -> bytes:
+    if isinstance(frame, Image.Image):
+        return _encode_pillow_frame(display, frame, executor)
+    else:
+        return _encode_numpy_frame(display, frame, executor)
+
+
+def _encode_numpy_frame(
     display: display.MonitorDisplay,
     frame: np.ndarray,
     executor: ThreadPoolExecutor,
@@ -51,6 +68,7 @@ def encode_numpy_frame(
 
     offsetWidth, offsetHeight = offset
     newWidth, newHeight = newSize
+
     if width != newWidth or height != newHeight:
         frame = cv2.resize(frame, newSize, interpolation=cv2.INTER_LANCZOS4)
 
@@ -65,13 +83,13 @@ def encode_numpy_frame(
     x_start = offsetWidth
     x_end = offsetWidth + newWidth
     base[y_start:y_end, x_start:x_end] = frame
-
     img = Image.fromarray(base)
-    encoded_frame = _encode_frame(display, img, executor)
+
+    encoded_frame = _encode_processed_frame(display, img, executor)
     return encoded_frame
 
 
-def encode_pillow_frame(
+def _encode_pillow_frame(
     display: display.MonitorDisplay, img: Image.Image, executor: ThreadPoolExecutor
 ) -> bytes:
     displaySize = _calculate_display_size(display)
@@ -82,7 +100,7 @@ def encode_pillow_frame(
     img = img.resize(newSize, resample=Image.Resampling.BOX)
     base = Image.new("RGB", displaySize)
     base.paste(img, offset)
-    return _encode_frame(display, base, executor)
+    return _encode_processed_frame(display, base, executor)
 
 
 def _calculate_permonitor(display: display.MonitorDisplay) -> tuple[int, int]:
@@ -96,6 +114,14 @@ def _calculate_display_size(display: display.MonitorDisplay) -> tuple[int, int]:
     totalWidth = perMonitorWidth * display.columns
     totalHeight = perMonitorHeight * display.rows
     return (totalWidth, totalHeight)
+
+
+def caclulate_target_res(
+    res: tuple[int, int], display: display.MonitorDisplay
+) -> tuple[int, int]:
+    displaySize = _calculate_display_size(display)
+    newSize, _ = _calculate_resize_parameters(sourceSize=res, maxSize=displaySize)
+    return newSize
 
 
 def _calculate_resize_parameters(
@@ -118,11 +144,10 @@ def _calculate_resize_parameters(
     return target_resize, target_offset
 
 
-def _encode_frame(
+def _encode_processed_frame(
     display: display.MonitorDisplay, img: Image.Image, executor: ThreadPoolExecutor
 ) -> bytes:
     perMonitorWidth, perMonitorHeight = _calculate_permonitor(display)
-
     monitors: list[Image.Image] = []
     for y in range(display.rows):
         for x in range(display.columns):
@@ -138,14 +163,17 @@ def _encode_frame(
     monitor_count_byte = bytes([len(monitors)])
 
     results = executor.map(
-        _encode_monitor, [(i, monitor, display) for i, monitor in enumerate(monitors)]
+        _encode_monitor,
+        [(i, monitor, display) for i, monitor in enumerate(monitors)],
     )
     frame_data = b"".join(results)
 
     return monitor_count_byte + frame_data
 
 
+
 def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> bytes:
+    global hits, nonhits
     index, img, display = arg
 
     RENDER_SIZE = display.monitorWidth * display.monitorHeight
