@@ -6,8 +6,6 @@ local streams = require("streams")
 local log = require("log")
 local ui = require("ui")
 
--- Uncomment to calibrate monitors
--- display.calibrate()
 
 local function playVideo()
     local monitors = display.getMonitors()
@@ -30,6 +28,9 @@ local function playVideo()
     stream.close()
 end
 
+display.initialise()
+-- Uncomment to calibrate monitors
+-- display.calibrate()
 
 while true do
     parallel.waitForAny(

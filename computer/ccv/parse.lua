@@ -1,26 +1,22 @@
 local createReader = require("ccv.reader")
 local utils = require("ccv.utils")
 local log = require("log")
-local exports = {}
+
+local parse = {}
 
 ---@class VideoFrame
 ---@field monitors FrameMonitorData[]
 
 ---@class FrameMonitorData
 ---@field index number
----@field palette RGB[]
+---@field palette number[]
 ---@field rows BlitData[]
 
----@class BlitData
----@field text string
----@field fg string
----@field bg string
-
----@alias RGB {r:number, g:number, b:number}
+---@alias BlitData {text: string, fg: string, bg: string}
 
 ---@param data string
 ---@return VideoFrame
-function exports.parseVideoFrame(data)
+function parse.parseVideoFrame(data)
     local reader = createReader(data)
     local length = reader.readByte()
 
@@ -38,11 +34,12 @@ function exports.parseVideoFrame(data)
             local r = reader.readByte()
             local g = reader.readByte()
             local b = reader.readByte()
-
-            palette[#palette + 1] =
+            local color = (
                 bit.blshift(r, 16)
                 + bit.blshift(g, 8)
                 + b
+            )
+            palette[#palette + 1] = color
         end
 
         ---@type BlitData[]
@@ -52,9 +49,9 @@ function exports.parseVideoFrame(data)
             local color = reader.read(width)
 
             local blit = string.format(string.rep("%02X", width), string.byte(color, 1, #color))
-            local bg = string.sub(blit, 1, width)
-            local fg = string.sub(blit, width + 1)
-            rows[#rows + 1] = { text = text, fg = fg, bg = bg }
+            local fg = string.sub(blit, 1, width)
+            local bg = string.sub(blit, width + 1)
+            rows[#rows + 1] = { text, fg, bg }
         end
 
         monitors[#monitors + 1] = {
@@ -69,4 +66,4 @@ function exports.parseVideoFrame(data)
     }
 end
 
-return exports
+return parse

@@ -16,13 +16,13 @@ function exports.renderVideoFrame(data, monitors)
         local monitor = monitors[section.index]
 
         for i, color in ipairs(section.palette) do
-            local colorId = colorIndexs[i]
-            monitor.setPaletteColor(colorId, color)
+            monitor.setPaletteColor(colorIndexs[i], color)
         end
 
         for y, row in ipairs(section.rows) do
+            local text, fg, bg = table.unpack(row)
             monitor.setCursorPos(1, y + 1)
-            monitor.blit(row.text, row.fg, row.bg)
+            monitor.blit(text, fg, bg)
         end
 
         utils.yield()

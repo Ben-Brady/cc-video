@@ -37,11 +37,13 @@ def get_video_resolution(
     video_streams = [
         stream for stream in info["streams"] if stream["codec_type"] == "video"
     ]
-    assert len(video_streams), "No video stream found"
+
+    assert len(video_streams) > 0, "No video stream found"
     vstream = t.cast(dict[str, int], video_streams[0])
 
     assert "width" in vstream, "width not found"
     width = vstream["width"]
+
     assert "height" in vstream, "height not found"
     height = vstream["height"]
 

@@ -16,7 +16,7 @@ https://github.com/user-attachments/assets/807abc87-74a7-4ce4-9277-b2a55591de48
 
 This project has been really fun for me, it started with the idea of pushing computer craft's displays to their limits and has ended up as a full youtube stream encoder pipeline.
 I learned a lot about stdout/in, pipes, and ffmpeg.
- 
+
 Monitors in computer craft are limited to 16 colours, but I had the idea to try and get around the limitation by breaking it down into multiple displays.
 
 This was my first verison in 2023:
@@ -57,3 +57,42 @@ This project is probably over for now, I've tidied it up the best I can and ther
 But it's way better than I expected already, and I've learned so much from it, I'm very glad to have done it.
 
 The one thing left to do is setup input streaming and hook it up to doom :)
+
+## Usage
+
+Currently only tested on Windows, other platforms will probably work with some tinkering.
+
+If your using this locally, make sure you remove the localhost restrcition in CC so you can access the servers locally.
+
+### Serve Script
+
+In order to server the project, copy the contents of serve.lua onto your CC device using pastebin or copy and pasting.
+
+Then run `python serve.py`, and this should start a HTTP server that allows your CC device to access the contents of the program folder.
+
+If this is on a multiplayer server, you may need to tweak port forwarding and the SERVER option in the serve.lua to work correctly.
+
+### Encode Server
+
+The project makes use of an encode server to stream video.
+
+Again if this is in multiplayer, this also needs to be port forwarded and setup correctly.
+
+```
+cd server
+python3.14 -m venv .venv
+.venv/Scripts/Activate.ps1
+pip install -r requirements.txt
+python app.py
+```
+
+> Python3.14 is recommended to improve performance, but earlier versions may work as well.
+
+
+### Monitor Setup
+
+In order to setup the monitors create a grid of 
+
+### Playing different videos
+
+In order to play local files, you them in the data folder in the server folder and edit main.lua to request them instead.

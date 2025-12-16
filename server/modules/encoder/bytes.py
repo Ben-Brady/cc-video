@@ -3,21 +3,27 @@ import struct
 
 class ByteWriter:
     cursor: int = 0
-    array: bytearray
+    _array: bytearray
 
     def __init__(self, length: int) -> None:
-        self.array = bytearray(length)
+        self._array = bytearray(length)
 
     def write(self, data: bytes | bytearray) -> None:
-        self.array[self.cursor : self.cursor + len(data)] = data
+        self._array[self.cursor : self.cursor + len(data)] = data
         self.cursor += len(data)
 
     def writeByte(self, value: int) -> None:
         data = struct.pack("c", bytes([value]))
         self.write(data)
 
-    def is_full(self) -> bool:
-        return self.cursor == len(self.array)
+    def build(self):
+        if self.cursor != len(self._array):
+            raise ValueError(
+                "Did not write correct amount to ByteWriter:\n"
+                f"expected={len(self._array)} actual={self.cursor}"
+            )
+
+        return self._array
 
 
 class ByteReader:

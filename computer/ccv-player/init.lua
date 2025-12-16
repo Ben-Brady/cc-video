@@ -4,7 +4,7 @@ local parse = require("ccv.parse")
 
 local player = {}
 
-local AUDIO_OFFSET = 3
+local AUDIO_OFFSET = 4
 local INITIAL_BUFFER_SIZE = 100
 
 ---@class Player
@@ -126,7 +126,7 @@ function player.createPlayer(stream, monitors, speakers)
             debug.avgFrameDuration = frameTimer.get()
 
             local renderTimer = utils.createAverageTimer("render-start")
-            parallel.waitForAll(playNextVideoFrame, playNextAudioFrame, utils.waitForNextTick)
+            parallel.waitForAll(playNextVideoFrame, playNextAudioFrame)
             debug.avgRenderDuration = renderTimer.get()
 
             debug.frame = debug.frame + 1

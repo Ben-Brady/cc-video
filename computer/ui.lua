@@ -12,7 +12,7 @@ end
 local width, height = monitor.getSize()
 
 local window_banner = window.create(monitor, 1, 1, width, 1, true)
-local window_info = window.create(monitor, 2, height - 9 - 1, width, 9, true)
+local window_info = window.create(monitor, 2, height - 13 - 1, width, 13, true)
 
 local function writeInfo(y, text)
     window_info.setVisible(false)
@@ -24,11 +24,13 @@ end
 
 local function initialRender()
     local mw, mh = display.getIndivualMonitorSize()
-    local res_w = tostring(display.MONITOR_ROWS * mw)
-    local res_h = tostring(display.MONITOR_COLS * mh)
-    writeInfo(11, "   Resolution: " .. res_w .. "x" .. res_h)
-    writeInfo(12, "         Rows: " .. tostring(display.MONITOR_ROWS) .. " x " .. tostring(mw) .. "px")
-    writeInfo(13, "         Cols: " .. tostring(display.MONITOR_COLS) .. " x " .. tostring(mh) .. "px")
+    local config = display.getConfig()
+    local res_w = tostring(config.rows * mw)
+    local res_h = tostring(config.cols * mh)
+
+    writeInfo(11, "  Resolution: " .. res_w .. "x" .. res_h)
+    writeInfo(12, "        Rows: " .. tostring(config.rows) .. " x " .. tostring(mw) .. "px")
+    writeInfo(13, "        Cols: " .. tostring(config.cols) .. " x " .. tostring(mh) .. "px")
 end
 
 function exports.initialise()
@@ -95,7 +97,7 @@ local function render()
         writeInfo(6, "      Buffer: " .. bufferText)
         writeInfo(7, "Audio Buffer: " .. tostring(info.audioBuffer))
         writeInfo(8, "Video Buffer: " .. tostring(info.videoBuffer))
-        writeInfo(9, "Buffer Size: " .. utils.round(info.bufferSize / 1000 / 1000, 1) .. "Mb")
+        writeInfo(9, " Buffer Size: " .. utils.round(info.bufferSize / 1000 / 1000, 1) .. "Mb")
     end
 end
 

@@ -44,7 +44,8 @@ def _create_pipe_to_queue(fd: int):
         fd: int,
         queue: Queue,
     ):
-        with open(fd, "wb") as f:
+        f = open(fd, "wb")
+        try:
             while True:
                 try:
                     data = queue.get(block=True)
@@ -52,6 +53,11 @@ def _create_pipe_to_queue(fd: int):
                     return
                 else:
                     f.write(data)
+        finally:
+            try:
+                f.close()
+            except Exception:
+                pass
 
     Thread(target=thread, args=(fd, queue), daemon=True).start()
     return queue
