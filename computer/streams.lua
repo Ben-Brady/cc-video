@@ -1,7 +1,6 @@
 local exports = {}
 
 local ui = require("ui")
-local lualzw = require("lualzw")
 local display = require("display")
 local utils = require("utils")
 local requests = require("requests")
@@ -95,9 +94,6 @@ function exports.connectToStream(streamId, bufferSize)
             return nil
         end
 
-        -- local timer = utils.createAverageTimer("decompress")
-        -- local decoded = lualzw.decompress(data)
-        -- print(timer.get())
         return data
     end
 
