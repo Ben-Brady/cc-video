@@ -115,72 +115,75 @@ def _calculate_resize_parameters(
 
 
 def _encode_frame(
-    display: display.MonitorDisplay, img: Image.Image, executor: ThreadPoolExecutor
+    display: display.MonitorDisplay,
+    img: Image.Image,
+    executor: ThreadPoolExecutor,
 ) -> bytes:
-    perMonitorWidth, perMonitorHeight = _calculate_permonitor(display)
+    per_w, per_h = _calculate_permonitor(display)
 
-    monitors: list[Image.Image] = []
+    boxes = []
+    boxes_append = boxes.append
+
     for y in range(display.rows):
+        y0 = (y * per_h) + T_MARGIN
+        y1 = ((y + 1) * per_h) - B_MARGIN
         for x in range(display.columns):
-            left = (x * perMonitorWidth) - L_MARGIN
-            right = ((x + 1) * perMonitorWidth) - R_MARGIN
-            upper = (y * perMonitorHeight) + T_MARGIN
-            lower = ((y + 1) * perMonitorHeight) - B_MARGIN
+            x0 = (x * per_w) - L_MARGIN
+            x1 = ((x + 1) * per_w) - R_MARGIN
+            boxes_append((x0, y0, x1, y1))
 
-            box = (left, upper, right, lower)
-            monitor = img.crop(box)
-            monitors.append(monitor)
-
-    monitor_count_byte = bytes([len(monitors)])
+    monitors = (img.crop(box) for box in boxes)
 
     results = executor.map(
-        _encode_monitor, [(i, monitor, display) for i, monitor in enumerate(monitors)]
+        _encode_monitor,
+        ((i, monitor, display) for i, monitor in enumerate(monitors)),
     )
-    frame_data = b"".join(results)
 
-    return monitor_count_byte + frame_data
+    return bytes([len(boxes)]) + b"".join(results)
+
 
 
 def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> bytes:
     with measure("foo"):
         index, img, display = arg
 
-        RENDER_SIZE = display.monitorWidth * display.monitorHeight
+        monitor_w = display.monitorWidth
+        monitor_h = display.monitorHeight
+
+        RENDER_SIZE = monitor_w * monitor_h
         PALETTE_SIZE = 16 * 3
+
         writer = ByteWriter(PALETTE_SIZE + RENDER_SIZE)
 
         writer.writeByte(index + 1)
-        writer.writeByte(display.monitorWidth)
-        writer.writeByte(display.monitorHeight)
+        writer.writeByte(monitor_w)
+        writer.writeByte(monitor_h)
 
         img = img.quantize(colors=16)
-        assert img.palette, "Image not quantized"
-        palette = img.palette.palette
+        palette = img.palette.palette 
 
         palette_data = bytearray(48)
-        palette_data[0 : len(palette)] = palette[:48]
-
+        palette_data[:48] = palette[:48]
         writer.write(palette_data)
 
-        img_arr = np.array(img)
+        img_arr = np.asarray(img, dtype=np.uint8)
 
-        height = display.monitorHeight * 2
-        width = display.monitorWidth
+        height = monitor_h * 2
+        width = monitor_w
 
-        even_width = width // 2 * 2
-        array_slice = img_arr[0:height, 0:even_width]
-
-        # combine 4 bit values into bytes
-        high_nibbles = array_slice[:, 0::2].astype(np.uint8)
-        low_nibbles = array_slice[:, 1::2].astype(np.uint8)
-        color_data = ((high_nibbles << 4) | (low_nibbles)).tobytes()
+        even_width = width & ~1 
+        array_slice = img_arr[:height, :even_width]
+        
+        high = array_slice[:, 0::2]
+        low = array_slice[:, 1::2]
+        color_data = ((high << 4) | low).tobytes()
 
         color_reader = ByteReader(color_data)
 
-        for _ in range(height // 2):
-            text_data = bytes([135 for _ in range(width)])
-            writer.write(text_data)
-            line_color = color_reader.read(width)
-            writer.write(line_color)
+        text_line = bytes([135]) * width
+
+        for _ in range(height >> 1):
+            writer.write(text_line)
+            writer.write(color_reader.read(width))
 
         return writer.build()
