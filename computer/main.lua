@@ -14,10 +14,13 @@ local function playVideo()
 
     ui.initialise()
     ui.setStream("loading")
-    -- local stream_id = requests.createYoutubeStream("k7D7OTfa-a4")
-    local stream_id = requests.createFileStream("slop.mp4")
+
+    -- local stream_id = requests.createYoutubeStream("gRslfM-MOOw")
+    local stream_id = requests.createLiveStream()
+    -- local stream_id = requests.createFileStream("slop.mp4")
+
     ui.setStream("fine")
-    local stream = streams.connectToStream(stream_id, 200)
+    local stream = streams.connectToStream(stream_id, 5, 1)
     utils.safecall(function()
         local play = player.createPlayer(stream, monitors, speakers)
         ui.updatePlayerDebug(play.debug)

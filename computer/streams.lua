@@ -19,9 +19,12 @@ local BATCH_SIZE = 20
 ---@field wait_for_video_buffer fun(size: number): nil
 
 ---@param streamId string
----@param bufferSize number
+---@param bufferSize? number
+---@param batchSize? number
 ---@return Stream
-function exports.connectToStream(streamId, bufferSize)
+function exports.connectToStream(streamId, bufferSize, batchSize)
+    bufferSize = bufferSize or 50
+    batchSize = bufferSize or 50
     local ws_video = requests.connectToVideoStream(streamId)
     local ws_audio = requests.connectToAudioStream(streamId)
 
