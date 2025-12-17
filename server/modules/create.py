@@ -1,9 +1,12 @@
+import pyautogui
+import numpy as np
 import typing as t
-import itertools
+import multiprocessing as mp
 from pathlib import Path
-from modules import youtube, video, streams
+from concurrent.futures import ThreadPoolExecutor
+from modules import youtube,  streams
 from modules.encoder import display, tee
-from modules.encoder import stream_video, stream_audio
+from modules.encoder import stream_video, stream_audio, encode_frame
 
 
 FOLDER = str(Path("./data/").resolve())
@@ -54,5 +57,11 @@ def create_youtube_stream(id: str, display: display.MonitorDisplay) -> str | Non
 
 
 def create_livestream_stream(display: display.MonitorDisplay) -> str:
-    video_stream = video.stream_livestream(display)
+    def stream_livestream(display: display.MonitorDisplay) -> t.Iterator[bytes]:
+        with ThreadPoolExecutor(max_workers=mp.cpu_count()) as executor:
+            while True:
+                img = pyautogui.screenshot()
+                yield encode_frame(display, np.array(img), executor)
+
+    video_stream = stream_livestream(display)
     return streams.create_stream(display, video_stream)

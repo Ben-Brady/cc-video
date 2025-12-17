@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import json
 
 from .frame import (
-    _encode_numpy_frame,
+    encode_frame,
     caclulate_target_res,
 )
 from .display import MonitorDisplay
@@ -22,7 +22,7 @@ def stream_video(stream: t.IO[bytes], display: MonitorDisplay) -> t.Iterator[byt
 
     with ThreadPoolExecutor(max_workers=mp.cpu_count()) as executor:
         for frame in frame_stream:
-            yield _encode_numpy_frame(display, frame, executor)
+            yield encode_frame(display, frame, executor)
 
 
 def get_video_resolution(

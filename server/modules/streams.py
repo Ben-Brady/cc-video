@@ -7,6 +7,7 @@ from contextlib import contextmanager
 import atexit
 from modules.encoder import MonitorDisplay
 
+
 streams: dict[str, Stream] = {}
 
 

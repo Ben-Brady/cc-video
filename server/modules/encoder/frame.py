@@ -1,14 +1,9 @@
-import typing as t
 import numpy as np
-from PIL import Image, ImagePalette
+from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
-from random import randint
-from hashlib import sha256
 import cv2
-from contextlib import contextmanager
 from . import display
-from .bytes import ByteReader, ByteWriter
-import time
+from .bytes import ByteWriter
 
 T_MARGIN = 0
 B_MARGIN = 0
@@ -20,42 +15,7 @@ R_MARGIN = 0
 # R_MARGIN = 3
 
 
-averages: dict[str, list[float]] = {}
-last_prints: dict[str, float] = {}
-
-
-@contextmanager
-def measure(name: str):
-    averages.setdefault(name, [])
-    last_prints.setdefault(name, 0)
-
-    start = time.time()
-    yield
-    duration = (time.time() - start) * 1000
-    averages[name].append(duration)
-
-    time_since_print = time.time() - last_prints[name]
-    PRINT_DELAY = 0.25
-    if time_since_print < PRINT_DELAY:
-        return
-
-    last_prints[name] = time.time()
-    avg_duration = sum(averages[name]) / len(averages[name])
-    print(f"{name}: {avg_duration:.3f}ms")
-
-
 def encode_frame(
-    display: display.MonitorDisplay,
-    frame: np.ndarray | Image.Image,
-    executor: ThreadPoolExecutor,
-) -> bytes:
-    if isinstance(frame, Image.Image):
-        return _encode_pillow_frame(display, frame, executor)
-    else:
-        return _encode_numpy_frame(display, frame, executor)
-
-
-def _encode_numpy_frame(
     display: display.MonitorDisplay,
     frame: np.ndarray,
     executor: ThreadPoolExecutor,
@@ -89,61 +49,6 @@ def _encode_numpy_frame(
     return encoded_frame
 
 
-def _encode_pillow_frame(
-    display: display.MonitorDisplay, img: Image.Image, executor: ThreadPoolExecutor
-) -> bytes:
-    displaySize = _calculate_display_size(display)
-    newSize, offset = _calculate_resize_parameters(
-        sourceSize=img.size, maxSize=displaySize
-    )
-
-    img = img.resize(newSize, resample=Image.Resampling.BOX)
-    base = Image.new("RGB", displaySize)
-    base.paste(img, offset)
-    return _encode_processed_frame(display, base, executor)
-
-
-def _calculate_permonitor(display: display.MonitorDisplay) -> tuple[int, int]:
-    perMonitorWidth = display.monitorWidth + L_MARGIN + R_MARGIN
-    perMonitorHeight = (display.monitorHeight * 2) + T_MARGIN + B_MARGIN
-    return (perMonitorWidth, perMonitorHeight)
-
-
-def _calculate_display_size(display: display.MonitorDisplay) -> tuple[int, int]:
-    perMonitorWidth, perMonitorHeight = _calculate_permonitor(display)
-    totalWidth = perMonitorWidth * display.columns
-    totalHeight = perMonitorHeight * display.rows
-    return (totalWidth, totalHeight)
-
-
-def caclulate_target_res(
-    res: tuple[int, int], display: display.MonitorDisplay
-) -> tuple[int, int]:
-    displaySize = _calculate_display_size(display)
-    newSize, _ = _calculate_resize_parameters(sourceSize=res, maxSize=displaySize)
-    return newSize
-
-
-def _calculate_resize_parameters(
-    sourceSize: tuple[int, int], maxSize: tuple[int, int]
-) -> tuple[tuple[int, int], tuple[int, int]]:
-    width, height = maxSize
-    source_width, source_height = sourceSize
-
-    width_ratio = width / source_width
-    height_ratio = height / source_height
-    scale = min(width_ratio, height_ratio)
-
-    new_width = int(source_width * scale)
-    new_height = int(source_height * scale)
-    x_offset = (width - new_width) // 2
-    y_offset = (height - new_height) // 2
-
-    target_resize = (new_width, new_height)
-    target_offset = (x_offset, y_offset)
-    return target_resize, target_offset
-
-
 def _encode_processed_frame(
     display: display.MonitorDisplay, img: Image.Image, executor: ThreadPoolExecutor
 ) -> bytes:
@@ -174,9 +79,10 @@ def _encode_processed_frame(
 def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> bytes:
     global hits, nonhits
     index, img, display = arg
+    width, height = img.width, img.height
 
+    PALETTE_SIZE = 3 * 16
     RENDER_SIZE = display.monitorWidth * display.monitorHeight
-    PALETTE_SIZE = 16 * 3
     writer = ByteWriter(PALETTE_SIZE + RENDER_SIZE)
 
     writer.writeByte(index + 1)
@@ -218,3 +124,44 @@ def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> byt
     writer.cursor = writer_cursor
 
     return writer.build()
+
+
+def _calculate_permonitor(display: display.MonitorDisplay) -> tuple[int, int]:
+    perMonitorWidth = display.monitorWidth + L_MARGIN + R_MARGIN
+    perMonitorHeight = (display.monitorHeight * 2) + T_MARGIN + B_MARGIN
+    return (perMonitorWidth, perMonitorHeight)
+
+
+def _calculate_display_size(display: display.MonitorDisplay) -> tuple[int, int]:
+    perMonitorWidth, perMonitorHeight = _calculate_permonitor(display)
+    totalWidth = perMonitorWidth * display.columns
+    totalHeight = perMonitorHeight * display.rows
+    return (totalWidth, totalHeight)
+
+
+def caclulate_target_res(
+    res: tuple[int, int], display: display.MonitorDisplay
+) -> tuple[int, int]:
+    displaySize = _calculate_display_size(display)
+    newSize, _ = _calculate_resize_parameters(sourceSize=res, maxSize=displaySize)
+    return newSize
+
+
+def _calculate_resize_parameters(
+    sourceSize: tuple[int, int], maxSize: tuple[int, int]
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    width, height = maxSize
+    source_width, source_height = sourceSize
+
+    width_ratio = width / source_width
+    height_ratio = height / source_height
+    scale = min(width_ratio, height_ratio)
+
+    new_width = int(source_width * scale)
+    new_height = int(source_height * scale)
+    x_offset = (width - new_width) // 2
+    y_offset = (height - new_height) // 2
+
+    target_resize = (new_width, new_height)
+    target_offset = (x_offset, y_offset)
+    return target_resize, target_offset
