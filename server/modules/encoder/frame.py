@@ -32,19 +32,15 @@ def encode_frame(
     if width != newWidth or height != newHeight:
         frame = cv2.resize(frame, newSize, interpolation=cv2.INTER_LANCZOS4)
 
-    base = np.full(
-        shape=[displaySize[1], displaySize[0], 3],
-        fill_value=0,
-        dtype=frame.dtype,
-    )
+    base = np.zeros((displaySize[1], displaySize[0], 3), dtype=np.uint8)
 
     y_start = offsetHeight
     y_end = offsetHeight + newHeight
     x_start = offsetWidth
     x_end = offsetWidth + newWidth
     base[y_start:y_end, x_start:x_end] = frame
-    img = Image.fromarray(base)
 
+    img = Image.fromarray(base)
     encoded_frame = _encode_processed_frame(display, img, executor)
     return encoded_frame
 
@@ -53,6 +49,7 @@ def _encode_processed_frame(
     display: display.MonitorDisplay, img: Image.Image, executor: ThreadPoolExecutor
 ) -> bytes:
     perMonitorWidth, perMonitorHeight = _calculate_permonitor(display)
+
     monitors: list[Image.Image] = []
     for y in range(display.rows):
         for x in range(display.columns):
@@ -89,7 +86,7 @@ def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> byt
     writer.writeByte(display.monitorWidth)
     writer.writeByte(display.monitorHeight)
 
-    img = img.quantize(colors=16)
+    img = img.quantize(colors=16, method=Image.Quantize.FASTOCTREE)
     assert img.palette, "Image not quantized"
     palette = img.palette.palette
 
@@ -106,7 +103,7 @@ def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> byt
     low_nibbles = pixels[1::2]
     color_data = (low_nibbles | (high_nibbles << 4)).tobytes()
 
-    text_data = bytes([135 for _ in range(width)])
+    text_data = bytes([135]) * width
 
     writer_array = writer.array
     writer_cursor = writer.cursor
@@ -122,7 +119,6 @@ def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> byt
         writer_cursor += width
 
     writer.cursor = writer_cursor
-
     return writer.build()
 
 
