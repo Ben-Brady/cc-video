@@ -21,7 +21,7 @@ class Stream:
 
 
 def create_stream(
-    display: display.MonitorDisplay,
+    display: MonitorDisplay,
     video: t.Iterator[bytes],
     audio: t.Iterator[bytes] | None = None,
     onclose: t.Callable[[], None] | None = None,
