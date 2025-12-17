@@ -171,7 +171,6 @@ def _encode_processed_frame(
     return monitor_count_byte + frame_data
 
 
-
 def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> bytes:
     global hits, nonhits
     index, img, display = arg
@@ -190,28 +189,32 @@ def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> byt
 
     palette_data = bytearray(48)
     palette_data[0 : len(palette)] = palette[:48]
-
     writer.write(palette_data)
-
-    img_arr = np.array(img)
 
     height = display.monitorHeight * 2
     width = display.monitorWidth
 
-    even_width = width // 2 * 2
-    array_slice = img_arr[0:height, 0:even_width]
-
     # combine 4 bit values into bytes
-    high_nibbles = array_slice[:, 0::2].astype(np.uint8)
-    low_nibbles = array_slice[:, 1::2].astype(np.uint8)
-    color_data = ((high_nibbles << 4) | (low_nibbles)).tobytes()
+    pixels = np.array(img).flatten()
+    high_nibbles = pixels[0::2]
+    low_nibbles = pixels[1::2]
+    color_data = (low_nibbles | (high_nibbles << 4)).tobytes()
 
-    color_reader = ByteReader(color_data)
+    text_data = bytes([135 for _ in range(width)])
 
-    for _ in range(height // 2):
-        text_data = bytes([135 for _ in range(width)])
-        writer.write(text_data)
-        line_color = color_reader.read(width)
-        writer.write(line_color)
+    writer_array = writer.array
+    writer_cursor = writer.cursor
+
+    for x in range(height // 2):
+        writer_array[writer_cursor : writer_cursor + width] = text_data
+        writer_cursor += width
+
+        start = x * width
+        data = color_data[start : start + width]
+
+        writer_array[writer_cursor : writer_cursor + width] = data
+        writer_cursor += width
+
+    writer.cursor = writer_cursor
 
     return writer.build()
