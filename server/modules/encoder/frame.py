@@ -86,7 +86,7 @@ def _encode_monitor(arg: tuple[int, Image.Image, display.MonitorDisplay]) -> byt
     writer.writeByte(display.monitorWidth)
     writer.writeByte(display.monitorHeight)
 
-    img = img.quantize(colors=16, method=Image.Quantize.FASTOCTREE)
+    img = img.quantize(colors=16, method=Image.Quantize.MEDIANCUT)
     assert img.palette, "Image not quantized"
     palette = img.palette.palette
 
