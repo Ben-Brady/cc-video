@@ -5,14 +5,14 @@ import cv2
 from . import display
 from .bytes import ByteWriter
 
-T_MARGIN = 0
-B_MARGIN = 0
-L_MARGIN = 0
-R_MARGIN = 0
-# T_MARGIN = 3
-# B_MARGIN = 4
-# L_MARGIN = 3
-# R_MARGIN = 3
+# T_MARGIN = 0
+# B_MARGIN = 0
+# L_MARGIN = 0
+# R_MARGIN = 0
+T_MARGIN = 3
+B_MARGIN = 4
+L_MARGIN = 3
+R_MARGIN = 3
 
 
 def encode_frame(
@@ -53,13 +53,15 @@ def _encode_processed_frame(
     monitors: list[Image.Image] = []
     for y in range(display.rows):
         for x in range(display.columns):
-            left = (x * perMonitorWidth) - L_MARGIN
+            left = (x * perMonitorWidth) + L_MARGIN
             right = ((x + 1) * perMonitorWidth) - R_MARGIN
             upper = (y * perMonitorHeight) + T_MARGIN
             lower = ((y + 1) * perMonitorHeight) - B_MARGIN
 
             box = (left, upper, right, lower)
             monitor = img.crop(box)
+            assert monitor.height == display.monitorHeight * 2
+            assert monitor.width == display.monitorWidth
             monitors.append(monitor)
 
     monitor_count_byte = bytes([len(monitors)])
