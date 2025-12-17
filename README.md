@@ -91,7 +91,11 @@ python app.py
 
 ### Monitor Setup
 
-In order to setup the monitors create a grid of 
+In order to setup the monitors create a grid of monitors like this:
+
+IMAGE HERE
+
+If you ever need to recalibrate it, remove the monitors.json file.
 
 ### Playing different videos
 
