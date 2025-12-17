@@ -49,9 +49,8 @@ function requests.createFileStream(filename)
     return stream_id
 end
 
----@param filename string
 ---@return string
-function requests.createLiveStream(filename)
+function requests.createLiveStream()
     local display_str = display.getDisplayString()
     local url = HTTP_SERVER .. "/start/stream?display=" .. display_str
     local r, msg = http.get(url)
