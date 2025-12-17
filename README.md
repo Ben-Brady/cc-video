@@ -88,12 +88,11 @@ python app.py
 
 > Python3.14 is recommended to improve performance, but earlier versions may work as well.
 
-
 ### Monitor Setup
 
 In order to setup the monitors create a grid of monitors like this:
 
-IMAGE HERE
+<img width="1499" height="996" alt="image" src="https://github.com/user-attachments/assets/00c91e60-33f2-4ae9-891e-57bf10797e0d" />
 
 If you ever need to recalibrate it, remove the monitors.json file.
 
