@@ -135,6 +135,7 @@ function player.createPlayer(stream, monitors, speakers)
             debug.videoBuffer = #stream.buffer.video
             debug.audioBuffer = #stream.buffer.audio
             debug.bufferSize = calculateBufferSize()
+            utils.yield()
         end
     end
 

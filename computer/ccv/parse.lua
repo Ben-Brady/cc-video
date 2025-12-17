@@ -59,6 +59,7 @@ function parse.parseVideoFrame(data)
             palette = palette,
             rows = rows
         }
+        utils.yield()
     end
 
     return {
