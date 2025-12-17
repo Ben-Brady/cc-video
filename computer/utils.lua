@@ -76,10 +76,5 @@ function exports.safecall(func)
     return success
 end
 
----@param value number
----@return string
-function exports.hex(value)
-
-end
 
 return exports
