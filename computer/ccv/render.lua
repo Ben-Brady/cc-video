@@ -1,4 +1,3 @@
-local createReader = require("ccv.reader")
 local parse = require("ccv.parse")
 local utils = require("ccv.utils")
 local log = require("log")

@@ -41,7 +41,9 @@ function player.createPlayer(stream, monitors, speakers)
     local function playNextVideoFrame()
         local frame = stream.nextVideoFrame()
         if frame then
+            local renderTimer = utils.createAverageTimer("render-start")
             ccv.renderVideoFrame(frame, monitors)
+            debug.avgRenderDuration = renderTimer.get()
         end
     end
 
@@ -123,11 +125,9 @@ function player.createPlayer(stream, monitors, speakers)
 
             local frameTimer = utils.createAverageTimer("frame-start")
             ensureBufferSuffienctlyLoaded()
-            debug.avgFrameDuration = frameTimer.get()
 
-            local renderTimer = utils.createAverageTimer("render-start")
             parallel.waitForAll(playNextVideoFrame, playNextAudioFrame)
-            debug.avgRenderDuration = renderTimer.get()
+            debug.avgFrameDuration = frameTimer.get()
 
             debug.frame = debug.frame + 1
             updateDebugBufferInfo()
