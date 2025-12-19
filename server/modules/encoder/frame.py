@@ -9,16 +9,16 @@ from .bytes import ByteWriter
 # B_MARGIN = 0
 # L_MARGIN = 0
 # R_MARGIN = 0
-T_MARGIN = 3
+T_MARGIN = 4
 B_MARGIN = 4
 L_MARGIN = 3
-R_MARGIN = 3
+R_MARGIN = 4
 
 
 def encode_frame(
     display: display.MonitorDisplay,
     frame: np.ndarray,
-    executor: ThreadPoolExecutor,
+    executor: ThreadPoolExecutor | None = None,
 ) -> bytes:
     width, height = (frame.shape[1], frame.shape[0])
     displaySize = _calculate_display_size(display)
@@ -46,7 +46,9 @@ def encode_frame(
 
 
 def _encode_processed_frame(
-    display: display.MonitorDisplay, img: Image.Image, executor: ThreadPoolExecutor
+    display: display.MonitorDisplay,
+    img: Image.Image,
+    executor: ThreadPoolExecutor | None,
 ) -> bytes:
     perMonitorWidth, perMonitorHeight = _calculate_permonitor(display)
 
@@ -66,7 +68,8 @@ def _encode_processed_frame(
 
     monitor_count_byte = bytes([len(monitors)])
 
-    results = executor.map(
+    map_func = executor.map if executor else map
+    results = map_func(
         _encode_monitor,
         [(i, monitor, display) for i, monitor in enumerate(monitors)],
     )
