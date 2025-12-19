@@ -1,7 +1,41 @@
-local utils = require("ccv.utils")
-local log = require("log")
+local ccv = {}
 
-local parse = {}
+local function yield()
+    local id = "ccv:" .. tostring(math.random(0, 10000000))
+    os.queueEvent(id)
+    os.pullEvent(id)
+end
+
+---@param speakers Speaker[]
+---@param buffer number[]
+local function playAudioToSpeakers(speakers, buffer)
+    local funcs = {}
+    for i, speaker in ipairs(speakers) do
+        funcs[#funcs + 1] = function()
+            local name = peripheral.getName(speaker)
+            while not speaker.playAudio(buffer) do
+                local _, target_name = os.pullEvent("speaker_audio_empty")
+            end
+            os.pullEvent("speaker_audio_empty")
+        end
+    end
+    parallel.waitForAll(table.unpack(funcs))
+end
+
+---@param frame string
+---@param speakers Speaker[]
+function ccv.playAudioFrame(frame, speakers)
+    if #frame == 0 then
+        return
+    end
+
+    local buffer = table.pack(string.byte(frame, 1, #frame))
+    for i = 1, #buffer, 1 do
+        buffer[i] = buffer[i] - 128
+    end
+
+    playAudioToSpeakers(speakers, buffer)
+end
 
 ---@class VideoFrame
 ---@field monitors FrameMonitorData[]
@@ -15,7 +49,7 @@ local parse = {}
 
 ---@param data string
 ---@return VideoFrame
-function parse.parseVideoFrame(data)
+local function parseVideoFrame(data)
     local offset = 1
 
     local length = string.byte(data, offset)
@@ -67,7 +101,7 @@ function parse.parseVideoFrame(data)
         }
 
         if j % 5 == 0 then
-            utils.yield()
+            yield()
         end
     end
 
@@ -76,4 +110,28 @@ function parse.parseVideoFrame(data)
     }
 end
 
-return parse
+
+---@param data string
+---@param monitors Monitor[]
+function ccv.renderVideoFrame(data, monitors)
+    local frame = parseVideoFrame(data)
+
+    for _, section in ipairs(frame.monitors) do
+        local monitor = monitors[section.index]
+
+        for i, color in ipairs(section.palette) do
+            local paletteIndex = 2 ^ (i - 1)
+            monitor.setPaletteColor(paletteIndex, color)
+        end
+
+        for y, row in ipairs(section.rows) do
+            local text, fg, bg = table.unpack(row)
+            monitor.setCursorPos(1, y + 1)
+            monitor.blit(text, fg, bg)
+        end
+
+        yield()
+    end
+end
+
+return ccv

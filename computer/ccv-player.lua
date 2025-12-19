@@ -1,6 +1,4 @@
-local utils = require("ccv-player.utils")
 local ccv = require("ccv")
-local parse = require("ccv.parse")
 
 local player = {}
 
@@ -20,6 +18,32 @@ local INITIAL_BUFFER_SIZE = 100
 ---@field videoBuffer number
 ---@field audioBuffer number
 
+local function createAverageTimer()
+    local total = 0
+    local count = 0
+
+    local start = os.clock()
+
+    return {
+        start = function()
+            start = os.clock()
+        end,
+        stop = function()
+            local duration = os.clock() - start
+            total = total + duration
+        end,
+        get = function()
+            return total / count
+        end
+    }
+end
+
+local function yield()
+    local id = "ccv:" .. tostring(math.random(0, 10000000))
+    os.queueEvent(id)
+    os.pullEvent(id)
+end
+
 
 ---@param stream Stream
 ---@param monitors Monitor[]
@@ -28,6 +52,9 @@ local INITIAL_BUFFER_SIZE = 100
 function player.createPlayer(stream, monitors, speakers)
     local buffer = stream.buffer
     local frames = 0
+
+    local renderTimer = createAverageTimer()
+    local frameTimer = createAverageTimer()
 
     local function playNextAudioFrame()
         if stream.has_audio then
@@ -41,8 +68,9 @@ function player.createPlayer(stream, monitors, speakers)
     local function playNextVideoFrame()
         local frame = stream.nextVideoFrame()
         if frame then
-            local renderTimer = utils.createAverageTimer("render-start")
+            renderTimer.start()
             ccv.renderVideoFrame(frame, monitors)
+            renderTimer.stop()
             debug.avgRenderDuration = renderTimer.get()
         end
     end
@@ -111,10 +139,6 @@ function player.createPlayer(stream, monitors, speakers)
     local function play()
         local videoStart = os.clock()
         ensureBufferSuffienctlyLoaded()
-        -- utils.yieldUntil(function()
-        --     updateDebugBufferInfo()
-        --     return stream.is_over
-        -- end)
         preloadSpeakers()
 
         while true do
@@ -123,10 +147,10 @@ function player.createPlayer(stream, monitors, speakers)
                 return
             end
 
-            local frameTimer = utils.createAverageTimer("frame-start")
+            frameTimer.start()
             ensureBufferSuffienctlyLoaded()
-
             parallel.waitForAll(playNextVideoFrame, playNextAudioFrame)
+            frameTimer.stop()
             debug.avgFrameDuration = frameTimer.get()
 
             debug.frame = debug.frame + 1
@@ -135,7 +159,7 @@ function player.createPlayer(stream, monitors, speakers)
             debug.videoBuffer = #stream.buffer.video
             debug.audioBuffer = #stream.buffer.audio
             debug.bufferSize = calculateBufferSize()
-            utils.yield()
+            yield()
         end
     end
 
