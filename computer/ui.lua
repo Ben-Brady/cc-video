@@ -1,5 +1,5 @@
 local utils = require("utils")
-local display = require("display")
+local displays = require("displays")
 
 local exports = {}
 
@@ -23,14 +23,13 @@ local function writeInfo(y, text)
 end
 
 local function initialRender()
-    local mw, mh = display.getIndivualMonitorSize()
-    local config = display.getConfig()
-    local res_w = tostring(config.rows * mw)
-    local res_h = tostring(config.cols * mh)
+    local display = displays.getDisplay()
+    local res_w = tostring(display.rows * display.width)
+    local res_h = tostring(display.cols * display.height)
 
     writeInfo(11, "  Resolution: " .. res_w .. "x" .. res_h)
-    writeInfo(12, "        Rows: " .. tostring(config.rows) .. " x " .. tostring(mw) .. "px")
-    writeInfo(13, "        Cols: " .. tostring(config.cols) .. " x " .. tostring(mh) .. "px")
+    writeInfo(12, "        Rows: " .. tostring(display.rows) .. " x " .. tostring(display.width) .. "px")
+    writeInfo(13, "        Cols: " .. tostring(display.cols) .. " x " .. tostring(display.height) .. "px")
 end
 
 function exports.initialise()

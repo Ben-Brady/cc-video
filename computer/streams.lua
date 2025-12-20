@@ -1,7 +1,6 @@
 local exports = {}
 
 local ui = require("ui")
-local display = require("display")
 local utils = require("utils")
 local requests = require("requests")
 
@@ -14,7 +13,8 @@ local BATCH_SIZE = 20
 ---@field receive fun(): nil
 ---@field has_more_data fun(): boolean
 ---@field close fun(): nil
----@field nextFrame fun(): (video: string, audio: string | nil)|nil
+---@field nextVideoFrame fun(): string | nil
+---@field nextAudioFrame fun(): string | nil
 ---@field wait_for_audio_buffer fun(size: number): nil
 ---@field wait_for_video_buffer fun(size: number): nil
 

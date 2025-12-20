@@ -46,10 +46,11 @@ end
 
 
 ---@param stream Stream
----@param monitors Monitor[]
+---@param display MonitorDisplay
 ---@param speakers Speaker[]
 ---@return Player
-function player.createPlayer(stream, monitors, speakers)
+function player.createPlayer(stream, display, speakers)
+    local monitors = display.monitors
     local buffer = stream.buffer
     local frames = 0
 

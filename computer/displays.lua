@@ -5,6 +5,13 @@ local display = {}
 ---@field rows number
 ---@field cols number
 
+---@class MonitorDisplay
+---@field monitors Monitor[]
+---@field rows number
+---@field cols number
+---@field width number
+---@field height number
+
 ---@type MonitorConfig?
 local _config
 
@@ -41,7 +48,7 @@ local function readConfig()
     ---@cast text string
 
     local config = textutils.unserialiseJSON(text)
-    ---@cast config MonitorConfig
+    ---@cast config MonitorDisplay
     assert(config["rows"] ~= nil, "'rows' not in config")
     assert(config["cols"] ~= nil, "'cols' not in config")
     assert(config["ids"] ~= nil, "'ids' not in config")
@@ -57,23 +64,36 @@ local function writeConfig(config)
     f.close()
 end
 
-function display.initialise()
+---@return MonitorDisplay
+function display.getDisplay()
     resetMonitors()
-    _config = readConfig()
-
-    if _config == nil then
+    local config = readConfig()
+    if config == nil then
         display.calibrate()
-        _config = readConfig()
+        config = readConfig()
     end
-end
+    ---@cast config MonitorConfig
 
----@return MonitorConfig
-function display.getConfig()
-    if _config == nil then
-        error("Monitors not initialised")
+    ---@type Monitor[]
+    local monitors = {}
+    for i = 1, config.rows * config.cols, 1 do
+        local monitor = peripheral.wrap(config.ids[i])
+        assert(monitor ~= nil, "Could not load monitor")
+        ---@cast monitor Monitor
+
+        monitors[i] = monitor
     end
 
-    return _config
+    local monitor = monitors[1]
+    local width, height = monitor.getSize()
+
+    return {
+        monitors = monitors,
+        rows = config.rows,
+        cols = config.cols,
+        width = width,
+        height = height,
+    }
 end
 
 function display.calibrate()
@@ -112,34 +132,6 @@ function display.calibrate()
         cols = cols
     })
     print("Calibration Complete")
-end
-
-function display.getMonitors()
-    local config = display.getConfig()
-    local monitor_count = config.rows * config.cols
-    local monitors = {}
-
-    for i = 1, monitor_count, 1 do
-        local id = config.ids[i]
-        local monitor = peripheral.wrap(id)
-        monitors[#monitors + 1] = monitor
-    end
-
-    return monitors
-end
-
-function display.getDisplayString()
-    local config = display.getConfig()
-    local width, height = display.getIndivualMonitorSize()
-    return string.format("%d-%d-%d-%d", config.rows, config.cols, width, height)
-end
-
-function display.getIndivualMonitorSize()
-    local config = display.getConfig()
-    local monitor = peripheral.wrap(config.ids[1])
-
-    local width, height = monitor.getSize()
-    return width, height
 end
 
 return display
