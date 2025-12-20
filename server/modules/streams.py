@@ -17,7 +17,7 @@ class Stream:
     display: MonitorDisplay
     video: t.Iterator[bytes]
     audio: t.Iterator[bytes] | None = None
-    onclose: t.Callable[[], None] | None = None
+    close: t.Callable[[], None] | None = None
     counter = 0
 
 
@@ -25,7 +25,7 @@ def create_stream(
     display: MonitorDisplay,
     video: t.Iterator[bytes],
     audio: t.Iterator[bytes] | None = None,
-    onclose: t.Callable[[], None] | None = None,
+    close: t.Callable[[], None] | None = None,
 ):
     stream_id = str(randint(0, 2**16))
     stream = Stream(
@@ -33,7 +33,7 @@ def create_stream(
         display=display,
         video=ensure_stream_started(video),
         audio=ensure_stream_started(audio) if audio else None,
-        onclose=onclose,
+        close=close,
     )
     streams[stream_id] = stream
     atexit.register(lambda: close_stream(stream_id))
@@ -46,8 +46,8 @@ def close_stream(id: str):
     if not stream:
         return
 
-    if stream.onclose:
-        stream.onclose()
+    if stream.close:
+        stream.close()
 
     del streams[id]
 

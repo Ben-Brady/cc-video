@@ -7,20 +7,20 @@ import atexit
 @dataclass
 class YoutubeStream:
     stream: t.IO[bytes]
-    process: sp.Popen[bytes]
+    close: t.Callable[[]]
 
 
-def get_youtube_stream(url: str) -> YoutubeStream | None:
+def get_youtube_stream(id: str) -> YoutubeStream | None:
     cmd = ["yt-dlp"]
-    cmd += [url]
+    cmd += [f"https://www.youtube.com/watch?v={id}"]
     cmd += ["--js-runtimes", "node"]
     cmd += ["--no-playlist"]
     cmd += ["--quiet"]
     cmd += ["-f", "bestvideo[height=480]+bestaudio"]
     cmd += ["-o", "-"]
-    # print(" ".join(cmd))
 
     p = sp.Popen(cmd, stdout=sp.PIPE)
     atexit.register(lambda: p.kill())
+    stream = t.cast(t.IO[bytes], p.stdout)
 
-    return YoutubeStream(stream=t.cast(t.IO[bytes], p.stdout), process=p)
+    return YoutubeStream(stream=stream, close=lambda: p.kill())

@@ -4,7 +4,7 @@ import typing as t
 import multiprocessing as mp
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from modules import youtube,  streams
+from modules import youtube, streams
 from modules.encoder import display, tee
 from modules.encoder import stream_video, stream_audio, encode_frame
 
@@ -30,13 +30,12 @@ def create_file_stream(filename: str, display: display.MonitorDisplay):
         display=display,
         video=video_stream,
         audio=audio_stream,
-        onclose=lambda: f.close(),
+        close=lambda: f.close(),
     )
 
 
 def create_youtube_stream(id: str, display: display.MonitorDisplay) -> str | None:
-    url = f"https://www.youtube.com/watch?v={id}"
-    result = youtube.get_youtube_stream(url)
+    result = youtube.get_youtube_stream(id)
     if not result:
         return None
 
@@ -51,7 +50,7 @@ def create_youtube_stream(id: str, display: display.MonitorDisplay) -> str | Non
         display=display,
         video=video_stream,
         audio=audio_stream,
-        onclose=lambda: result.process.kill(),
+        close=result.close,
     )
     return stream_id
 
