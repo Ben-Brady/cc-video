@@ -1,12 +1,12 @@
-import pyautogui
+import ccv
 import numpy as np
 import typing as t
 import multiprocessing as mp
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from modules import youtube, streams
-from modules.encoder import display, tee
-from modules.encoder import stream_video, stream_audio, encode_frame
+from modules.encoder import display, tee, MARGIN
+from modules.encoder import stream_video, stream_audio
 
 
 FOLDER = str(Path("./data/").resolve())
@@ -56,11 +56,23 @@ def create_youtube_stream(id: str, display: display.MonitorDisplay) -> str | Non
 
 
 def create_livestream_stream(display: display.MonitorDisplay) -> str:
+    import pyautogui
+
     def stream_livestream(display: display.MonitorDisplay) -> t.Iterator[bytes]:
         with ThreadPoolExecutor(max_workers=mp.cpu_count()) as executor:
             while True:
                 img = pyautogui.screenshot()
-                yield encode_frame(display, np.array(img), executor)
+                ccv_img = ccv.Image(
+                    width=img.width,
+                    height=img.height,
+                    data=np.array(img).flatten().tobytes()
+                )
+                ccv_display = ccv.MonitorDisplay(
+                    grid=(display.columns,display.rows),
+                    monitor=(display.monitorWidth, display.monitorHeight),
+                    margin=MARGIN
+                )
+                yield ccv.encode_frame(ccv_img, ccv_display)
 
     video_stream = stream_livestream(display)
     return streams.create_stream(display, video_stream)

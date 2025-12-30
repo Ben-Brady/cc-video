@@ -1,28 +1,30 @@
+import ccv
 import typing as t
-import numpy as np
 import subprocess as sp
-import multiprocessing as mp
-from concurrent.futures import ThreadPoolExecutor
+from itertools import batched
 import json
 
-from .frame import (
-    encode_frame,
-    caclulate_target_res,
-)
 from .display import MonitorDisplay
 from .tee import tee
 
+MARGIN = (0,0,0,0)
 
 def stream_video(stream: t.IO[bytes], display: MonitorDisplay) -> t.Iterator[bytes]:
     ffprobe_io, ffmpeg_io = tee(stream)
     res = get_video_resolution(ffprobe_io)
+    frame_stream = start_ffmpeg_stream(ffmpeg_io, res)
 
-    targetRes = caclulate_target_res(res, display)
-    frame_stream = start_ffmpeg_stream(ffmpeg_io, targetRes)
-
-    with ThreadPoolExecutor(max_workers=mp.cpu_count()) as executor:
-        for frame in frame_stream:
-            yield encode_frame(display, frame, executor)
+    for batch in batched(frame_stream, 10):
+        ccv_display = ccv.MonitorDisplay(
+            grid=(display.rows, display.columns),
+            monitor=(display.monitorWidth, display.monitorHeight),
+            margin=MARGIN
+        )
+        images = [
+            ccv.Image(width=res[0], height=res[1], data=frame)
+            for frame in batch
+        ]
+        yield from ccv.encode_frames(images, ccv_display)
 
 
 def get_video_resolution(
@@ -57,12 +59,10 @@ def get_video_resolution(
 
 def start_ffmpeg_stream(
     stream: t.IO[bytes], res: tuple[int, int]
-) -> t.Iterator[np.ndarray]:
-    width, height = res
-
+) -> t.Iterator[bytes]:
     cmd = ["ffmpeg"]
     cmd += ["-i", "-"]
-    cmd += ["-vf", f"scale={width}:{height},fps=fps=20"]
+    cmd += ["-vf", f"fps=fps=20"]
     cmd += ["-f", "rawvideo"]
     cmd += ["-pix_fmt", "rgb24"]
     cmd += ["-"]
@@ -70,11 +70,11 @@ def start_ffmpeg_stream(
     process = sp.Popen(cmd, stdin=stream, stdout=sp.PIPE, stderr=sp.DEVNULL)
 
     while True:
+        width, height = res
         size = width * height * 3
         data = process.stdout.read(size)  # type: ignore
         if len(data) < size:
             return
 
-        arr_1d = np.frombuffer(data, dtype=np.uint8)
-        arr = arr_1d.reshape(height, width, 3)
-        yield arr
+        yield data
+

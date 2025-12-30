@@ -8,3 +8,4 @@ opencv-python
 pyautogui
 audioop-lts
 tqdm
+../ccv-encoder

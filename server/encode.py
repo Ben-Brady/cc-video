@@ -7,18 +7,22 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 import cv2
 
-FILEPATH = "slop.mp4"
+FILEPATH = "tf2.mp4"
 
-display = display.MonitorDisplay(rows=3, columns=7, monitorWidth=32, monitorHeight=24)
+display = display.MonitorDisplay(rows=6, columns=10, monitorWidth=32, monitorHeight=24)
 stream_id = create.create_file_stream(FILEPATH, display)
-if not stream_id:
-    raise ValueError("stream not found")
+assert stream_id, "stream not found"
 
 with streams.aqquire_stream(stream_id) as stream:
     output = []
     for i, frame in tqdm(enumerate(stream.video)):
         reader = ByteReader(frame)
         length = reader.read(1)[0]
+        columns = reader.read(1)[0]
+        rows = reader.read(1)[0]
+
+        assert display.columns == columns, columns
+        assert display.rows == rows, rows
 
         img = Image.new(
             "RGB",

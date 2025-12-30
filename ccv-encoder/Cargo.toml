@@ -1,0 +1,22 @@
+[package]
+name = "ccv"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "ccv"
+crate-type = ["cdylib"]
+
+[dependencies]
+image = "0.25.9"
+quantette = { version = "0.5.1", features = [
+    "kmeans",
+    "threads",
+    "image",
+    "std",
+] }
+rayon = "1.11.0"
+pyo3 = { version = "0.27.2", features = ["extension-module"] }
+
+[profile.release]
+debug = true
