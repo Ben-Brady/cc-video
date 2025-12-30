@@ -44,20 +44,15 @@ def _create_pipe_to_queue(fd: int):
         fd: int,
         queue: Queue,
     ):
-        f = open(fd, "wb")
         try:
-            while True:
-                try:
+            with open(fd, "wb") as f:
+                while True:
                     data = queue.get(block=True)
-                except ShutDown:
-                    return
-                else:
                     f.write(data)
-        finally:
-            try:
-                f.close()
-            except Exception:
-                pass
+        except ShutDown:
+            pass
+        except BrokenPipeError:
+            pass
 
     Thread(target=thread, args=(fd, queue), daemon=True).start()
     return queue
