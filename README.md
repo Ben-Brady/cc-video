@@ -1,7 +1,10 @@
 # CC Video
 
-https://github.com/user-attachments/assets/807abc87-74a7-4ce4-9277-b2a55591de48
+> A Computer Craft video platform supporting full colour video and streamed encoding.
+> 
+> Encoder written in Rust, Web Server written in Python, and decoder written in Lua.
 
+https://github.com/user-attachments/assets/807abc87-74a7-4ce4-9277-b2a55591de48
 
 **Features:**
 
